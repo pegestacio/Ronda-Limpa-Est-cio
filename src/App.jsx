@@ -11,6 +11,7 @@ import {
   Legend, ResponsiveContainer, LineChart, Line
 } from "recharts";
 import * as XLSX from "xlsx";
+import { gerarQrDataUrl, linkDoAmbiente } from "./qr";
 import {
   fetchUsers, createUser, updateUser, deleteUser,
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
@@ -90,6 +91,14 @@ export default function App() {
   const [notificacoes, setNotificacoes] = useState([]);
   const [tab, setTab] = useState("dashboard");
   const [erroCarregamento, setErroCarregamento] = useState("");
+  const [urlAmbienteId, setUrlAmbienteId] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("ambiente");
+  });
+  const clearUrlAmbiente = () => {
+    setUrlAmbienteId(null);
+    window.history.replaceState({}, "", window.location.pathname);
+  };
 
   const reload = useCallback(async () => {
     try {
@@ -211,7 +220,15 @@ export default function App() {
         {isAdmin && tab === "relatorios" && <Relatorios ambientes={ambientes} inspecoes={inspecoes} />}
         {isAdmin && tab === "notificacoes" && <Notificacoes notificacoes={notificacoes} onChange={reload} />}
         {isAdmin && tab === "usuarios" && <UsuariosManager users={users} currentUser={currentUser} onChange={reload} />}
-        {!isAdmin && tab === "ronda" && <Ronda ambientes={ambientes} currentUser={currentUser} onSaved={reload} />}
+        {!isAdmin && tab === "ronda" && (
+          <Ronda
+            ambientes={ambientes}
+            currentUser={currentUser}
+            onSaved={reload}
+            directAmbiente={urlAmbienteId ? ambientes.find(a => a.id === urlAmbienteId) : null}
+            onClearDirect={clearUrlAmbiente}
+          />
+        )}
         {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters />}
       </main>
 
@@ -606,21 +623,37 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
       )}
 
       {selectedQr && (
-        <Modal onClose={() => setSelectedQr(null)} title="Identificador do ambiente">
-          <div className="text-center py-2">
-            <div className="mx-auto w-40 h-40 border-2 border-dashed border-blue-300 rounded-xl flex flex-col items-center justify-center bg-blue-50 mb-3">
-              <QrCode size={56} className="text-blue-700" />
-            </div>
-            <p className="font-mono font-bold text-lg text-blue-800">{selectedQr.codigo}</p>
-            <p className="text-sm text-gray-600 mt-1">{selectedQr.nome}</p>
-            <p className="text-xs text-gray-400 mt-3 leading-relaxed">
-              O QR é simbólico — na tela "Ronda" o inspetor seleciona o ambiente para simular a leitura.
-              Para gerar uma imagem de QR real para imprimir, dá pra adicionar depois a lib "qrcode" no projeto.
-            </p>
-            <button onClick={() => window.print()} className="btn-secondary mx-auto mt-4 !w-auto px-4"><Printer size={15} /> Imprimir</button>
-          </div>
+        <Modal onClose={() => setSelectedQr(null)} title="QR Code do ambiente">
+          <AmbienteQrView ambiente={selectedQr} />
         </Modal>
       )}
+    </div>
+  );
+}
+
+function AmbienteQrView({ ambiente }) {
+  const [qr, setQr] = useState(null);
+  const url = linkDoAmbiente(ambiente.id);
+
+  useEffect(() => {
+    let ativo = true;
+    setQr(null);
+    gerarQrDataUrl(url).then(d => { if (ativo) setQr(d); });
+    return () => { ativo = false; };
+  }, [url]);
+
+  return (
+    <div className="text-center py-2">
+      <div className="mx-auto w-52 h-52 border border-gray-200 rounded-xl flex items-center justify-center bg-white p-3">
+        {qr ? <img src={qr} alt={`QR code de ${ambiente.nome}`} className="w-full h-full" /> : <Loader2 className="animate-spin text-blue-700" size={22} />}
+      </div>
+      <p className="font-mono font-bold text-lg text-blue-800 mt-3">{ambiente.codigo}</p>
+      <p className="text-sm text-gray-600 mt-1">{ambiente.nome}</p>
+      <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+        Aponte a câmera do celular pra este QR (não precisa abrir o app antes) — ele leva direto
+        pra ficha de inspeção deste ambiente. O inspetor precisa estar logado no navegador do celular.
+      </p>
+      <button onClick={() => window.print()} className="btn-secondary mx-auto mt-4 !w-auto px-4"><Printer size={15} /> Imprimir</button>
     </div>
   );
 }
@@ -782,16 +815,32 @@ function UsuarioForm({ initial, busy, err, onSubmit, onCancel }) {
 
 /* -------------------------------- ronda ----------------------------------- */
 
-function Ronda({ ambientes, currentUser, onSaved }) {
-  const [selected, setSelected] = useState(null);
+function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect }) {
+  const [selected, setSelected] = useState(directAmbiente || null);
   const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    if (directAmbiente) setSelected(directAmbiente);
+  }, [directAmbiente]);
 
   const filtered = ambientes.filter(a =>
     a.nome.toLowerCase().includes(search.toLowerCase()) || a.codigo.toLowerCase().includes(search.toLowerCase())
   );
 
+  const voltar = () => {
+    setSelected(null);
+    onClearDirect?.();
+  };
+
   if (selected) {
-    return <FichaInspecao ambiente={selected} currentUser={currentUser} onBack={() => setSelected(null)} onSaved={() => { onSaved(); setSelected(null); }} />;
+    return (
+      <FichaInspecao
+        ambiente={selected}
+        currentUser={currentUser}
+        onBack={voltar}
+        onSaved={() => { onSaved(); voltar(); }}
+      />
+    );
   }
 
   return (
@@ -801,7 +850,7 @@ function Ronda({ ambientes, currentUser, onSaved }) {
         <div>
           <h2 className="font-display font-bold text-gray-800">Nova ronda</h2>
           <p className="text-sm text-gray-600 mt-0.5">
-            Toque no ambiente para "escanear" e abrir a ficha de inspeção (leitura de QR Code simulada).
+            Escaneie o QR Code na porta do ambiente com a câmera do celular, ou toque no ambiente abaixo pra abrir a ficha manualmente.
           </p>
         </div>
       </div>

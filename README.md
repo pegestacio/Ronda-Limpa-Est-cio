@@ -57,13 +57,18 @@ git push -u origin main
 
 ## Sobre o QR Code
 
-A leitura de QR por câmera não está implementada — na tela **Ronda**, o
-inspetor escolhe o ambiente numa lista (isso substitui o "escanear"). Se no
-futuro você quiser QR de verdade:
-- Geração: adicione a lib `qrcode` e gere a imagem a partir do campo `codigo`
-  de cada ambiente.
-- Leitura: adicione uma lib de leitura via câmera, tipo `html5-qrcode` ou
-  `jsqr`, numa nova tela que abra a câmera do celular.
+Cada ambiente tem um QR Code real (gerado com a lib `qrcode`). Ele guarda um
+link do próprio site, tipo `https://seu-site.vercel.app/?ambiente=ID-DO-AMBIENTE`.
+Quando o inspetor aponta a câmera do celular (a câmera nativa, sem precisar
+abrir o app antes), o navegador abre esse link e — se o inspetor já estiver
+logado no celular — cai direto na ficha de inspeção daquele ambiente.
+
+Passo a passo pra usar:
+1. Na aba **Ambientes**, clique em "Código" no ambiente desejado e depois em
+   "Imprimir" pra colar na porta.
+2. No celular do inspetor, ele entra uma vez no site e faz login (o login
+   fica salvo no navegador).
+3. Nas próximas vezes, é só apontar a câmera pro QR na porta.
 
 ## Sobre segurança do login
 
