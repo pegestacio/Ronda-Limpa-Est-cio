@@ -185,3 +185,22 @@ export async function markNotificacaoLida(id) {
   const { error } = await supabase.from("notificacoes").update({ lida: true }).eq("id", id);
   if (error) throw error;
 }
+
+/* ------------------------------- resumo IA -------------------------------- */
+
+export async function gerarResumoIA(inspecoes, periodoLabel) {
+  const payload = inspecoes.map(i => ({
+    data: i.data,
+    hora: i.hora,
+    ambienteNome: i.ambienteNome,
+    status: i.status === "limpo" ? "Limpo" : i.status === "parcial" ? "Limpeza Parcial" : "Não Limpo",
+    observacao: i.observacao,
+    inspetorNome: i.inspetorNome,
+  }));
+  const { data, error } = await supabase.functions.invoke("resumo-ia", {
+    body: { inspecoes: payload, periodoLabel },
+  });
+  if (error) throw error;
+  if (data?.error) throw new Error(data.error);
+  return data.resumo;
+}

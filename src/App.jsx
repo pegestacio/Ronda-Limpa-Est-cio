@@ -4,7 +4,7 @@ import {
   FileDown, QrCode, Camera, Image as ImageIcon, CheckCircle2, AlertTriangle,
   XCircle, Search, Plus, Trash2, Pencil, User, Users, ChevronRight, X,
   MapPin, Clock, Calendar, Filter, Printer, Sheet, ClipboardCheck, ScanLine,
-  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check
+  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -17,6 +17,7 @@ import {
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
   fetchInspecoes, createInspecao,
   fetchNotificacoes, createNotificacao, markNotificacaoLida,
+  gerarResumoIA,
 } from "./api";
 
 /* ----------------------------- constantes ----------------------------- */
@@ -1121,6 +1122,9 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters }) {
 
 function Relatorios({ ambientes, inspecoes }) {
   const [filtros, setFiltros] = useState({ dataIni: "", dataFim: "", status: "" });
+  const [resumo, setResumo] = useState("");
+  const [resumoBusy, setResumoBusy] = useState(false);
+  const [resumoErr, setResumoErr] = useState("");
 
   const filtered = inspecoes.filter(i => {
     if (filtros.dataIni && i.dataKey < filtros.dataIni) return false;
@@ -1128,6 +1132,23 @@ function Relatorios({ ambientes, inspecoes }) {
     if (filtros.status && i.status !== filtros.status) return false;
     return true;
   });
+
+  const periodoLabel = filtros.dataIni || filtros.dataFim
+    ? `${filtros.dataIni || "início"} até ${filtros.dataFim || "hoje"}`
+    : "todos os registros disponíveis";
+
+  const gerarResumo = async () => {
+    setResumoBusy(true);
+    setResumoErr("");
+    setResumo("");
+    try {
+      const texto = await gerarResumoIA(filtered, periodoLabel);
+      setResumo(texto);
+    } catch (e) {
+      setResumoErr("Não foi possível gerar o resumo: " + (e.message || e));
+    }
+    setResumoBusy(false);
+  };
 
   const linhas = filtered.map(i => ({
     Ambiente: i.ambienteNome, Status: STATUS[i.status].label, Observacao: i.observacao || "",
@@ -1171,6 +1192,20 @@ function Relatorios({ ambientes, inspecoes }) {
           <button onClick={exportarExcel} disabled={filtered.length === 0} className="btn-secondary !w-auto px-3.5 disabled:opacity-40"><Sheet size={15} /> Exportar Excel</button>
           <button onClick={() => window.print()} disabled={filtered.length === 0} className="btn-secondary !w-auto px-3.5 disabled:opacity-40"><Printer size={15} /> Exportar PDF (imprimir)</button>
         </div>
+      </div>
+
+      <div className="no-print bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Sparkles size={16} className="text-blue-700" /> Resumo com IA</div>
+          <button onClick={gerarResumo} disabled={resumoBusy || filtered.length === 0} className="btn-primary !w-auto px-3.5 disabled:opacity-40">
+            {resumoBusy ? <Loader2 className="animate-spin" size={15} /> : <Sparkles size={15} />} {resumoBusy ? "Gerando..." : "Gerar resumo"}
+          </button>
+        </div>
+        {resumoErr && <p className="text-red-600 text-xs font-medium">{resumoErr}</p>}
+        {resumo && <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-blue-50 rounded-lg p-3">{resumo}</p>}
+        {!resumo && !resumoErr && !resumoBusy && (
+          <p className="text-xs text-gray-400">Gera um resumo em português das inspeções filtradas acima — destaques, problemas recorrentes e uma recomendação.</p>
+        )}
       </div>
 
       <div className="print-area bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
