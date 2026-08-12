@@ -283,7 +283,9 @@ function LoginScreen({ users, onLogin, onUsersChange }) {
     <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center p-4 font-sans">
       <div className="w-full max-w-sm">
         <div className="text-center mb-6 text-white">
-          <div className="inline-flex bg-white/15 rounded-2xl p-3 mb-3"><ClipboardCheck size={30} /></div>
+          <div className="logo3d-wrap inline-block mb-3">
+            <img src="/logo-estacio.png" alt="Estácio" className="logo3d-spin w-20 h-20 mx-auto" />
+          </div>
           <h1 className="font-display font-extrabold text-2xl tracking-tight">RondaLimpa</h1>
           <p className="text-blue-100 text-sm mt-1">Fiscalização de limpeza dos ambientes</p>
         </div>

@@ -21,3 +21,21 @@ body { font-family: 'Inter', ui-sans-serif, system-ui, sans-serif; }
   .no-print { display: none !important; }
   .print-area { box-shadow: none !important; }
 }
+
+.logo3d-wrap {
+  perspective: 900px;
+  animation: float3d 3.2s ease-in-out infinite;
+}
+.logo3d-spin {
+  transform-style: preserve-3d;
+  animation: spin3d 7s linear infinite;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.35));
+}
+@keyframes spin3d {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+@keyframes float3d {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
