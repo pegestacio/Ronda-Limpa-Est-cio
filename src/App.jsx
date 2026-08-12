@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import * as XLSX from "xlsx";
 import { gerarQrDataUrl, linkDoAmbiente } from "./qr";
+import { gerarPdfTodosQrCodes } from "./qrPdf";
 import {
   fetchUsers, createUser, updateUser, deleteUser,
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
@@ -546,6 +547,19 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
   const [busy, setBusy] = useState(false);
   const [selectedQr, setSelectedQr] = useState(null);
   const [search, setSearch] = useState("");
+  const [gerandoPdf, setGerandoPdf] = useState(false);
+  const [erroPdf, setErroPdf] = useState("");
+
+  const imprimirTodos = async () => {
+    setGerandoPdf(true);
+    setErroPdf("");
+    try {
+      await gerarPdfTodosQrCodes(ambientes);
+    } catch (e) {
+      setErroPdf("Não foi possível gerar o PDF: " + (e.message || e));
+    }
+    setGerandoPdf(false);
+  };
 
   const filtered = ambientes.filter(a =>
     a.nome.toLowerCase().includes(search.toLowerCase()) || a.codigo.toLowerCase().includes(search.toLowerCase())
@@ -579,8 +593,14 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <h2 className="font-display font-bold text-xl text-gray-800">Ambientes</h2>
-        <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary !w-auto px-4"><Plus size={16} /> Novo ambiente</button>
+        <div className="flex gap-2">
+          <button onClick={imprimirTodos} disabled={gerandoPdf || ambientes.length === 0} className="btn-secondary !w-auto px-4 disabled:opacity-40">
+            {gerandoPdf ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />} {gerandoPdf ? "Gerando PDF..." : "Imprimir todos os QR Codes"}
+          </button>
+          <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary !w-auto px-4"><Plus size={16} /> Novo ambiente</button>
+        </div>
       </div>
+      {erroPdf && <p className="text-red-600 text-xs font-medium">{erroPdf}</p>}
 
       <div className="relative max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
