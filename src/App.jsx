@@ -968,6 +968,10 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
           try {
             await enviarEmailNotificacao({
               ambienteNome: ambiente.nome,
+              ambienteCodigo: ambiente.codigo,
+              bloco: ambiente.bloco,
+              andar: ambiente.andar,
+              tipo: ambiente.tipo,
               observacao: observacao.trim(),
               data, hora,
               inspetorNome: currentUser.nome,
