@@ -18,7 +18,7 @@ import {
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
   fetchInspecoes, createInspecao, updateInspecao, deleteInspecao, uploadFotoInspecao,
   fetchNotificacoes, createNotificacao, markNotificacaoLida,
-  gerarResumoIA,
+  gerarResumoIA, enviarEmailNotificacao,
 } from "./api";
 
 /* ----------------------------- constantes ----------------------------- */
@@ -229,6 +229,7 @@ export default function App() {
             onSaved={reload}
             directAmbiente={urlAmbienteId ? ambientes.find(a => a.id === urlAmbienteId) : null}
             onClearDirect={clearUrlAmbiente}
+            adminEmails={users.filter(u => u.perfil === "administrador").map(u => u.email)}
           />
         )}
         {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters onChange={reload} />}
@@ -838,7 +839,7 @@ function UsuarioForm({ initial, busy, err, onSubmit, onCancel }) {
 
 /* -------------------------------- ronda ----------------------------------- */
 
-function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect }) {
+function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect, adminEmails }) {
   const [selected, setSelected] = useState(directAmbiente || null);
   const [search, setSearch] = useState("");
 
@@ -862,6 +863,7 @@ function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect 
         currentUser={currentUser}
         onBack={voltar}
         onSaved={() => { onSaved(); voltar(); }}
+        adminEmails={adminEmails}
       />
     );
   }
@@ -905,7 +907,7 @@ function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect 
   );
 }
 
-function FichaInspecao({ ambiente, currentUser, onBack, onSaved }) {
+function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) {
   const [status, setStatus] = useState("limpo");
   const [observacao, setObservacao] = useState("");
   const [fotoPreview, setFotoPreview] = useState(null);
@@ -959,6 +961,23 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved }) {
           ambienteNome: ambiente.nome, observacao: observacao.trim(),
           data, hora, inspetorNome: currentUser.nome, criadoEm: iso,
         }, fotoUrl);
+
+        // Envio de e-mail é "melhor esforço": se falhar, não impede o
+        // registro da inspeção, que já foi salvo com sucesso acima.
+        if (adminEmails && adminEmails.length > 0) {
+          try {
+            await enviarEmailNotificacao({
+              ambienteNome: ambiente.nome,
+              observacao: observacao.trim(),
+              data, hora,
+              inspetorNome: currentUser.nome,
+              fotoUrl,
+              destinatarios: adminEmails,
+            });
+          } catch (emailErr) {
+            console.error("Falha ao enviar e-mail de notificação:", emailErr);
+          }
+        }
       }
       onSaved();
     } catch (e) {

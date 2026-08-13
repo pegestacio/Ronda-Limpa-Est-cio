@@ -205,6 +205,22 @@ export async function markNotificacaoLida(id) {
   if (error) throw error;
 }
 
+export async function enviarEmailNotificacao(dados) {
+  const { data, error } = await supabase.functions.invoke("notificar-email", { body: dados });
+  if (error) {
+    let detalhe = error.message || String(error);
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const body = await error.context.json();
+        if (body?.error) detalhe = body.error;
+      }
+    } catch { /* mantém a mensagem genérica se não der pra ler o corpo */ }
+    throw new Error(detalhe);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
 /* ------------------------------- resumo IA -------------------------------- */
 
 export async function gerarResumoIA(inspecoes, periodoLabel) {
