@@ -976,7 +976,11 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
             });
           } catch (emailErr) {
             console.error("Falha ao enviar e-mail de notificação:", emailErr);
+            alert("Inspeção salva, mas o e-mail não pôde ser enviado: " + (emailErr.message || emailErr));
           }
+        } else {
+          console.warn("Nenhum e-mail de administrador encontrado — e-mail de notificação não foi tentado.");
+          alert("Inspeção salva, mas nenhum administrador com e-mail foi encontrado para notificar.");
         }
       }
       onSaved();
