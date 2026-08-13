@@ -118,6 +118,10 @@ async function uploadFoto(dataUrl, ambienteId) {
   return data.publicUrl;
 }
 
+export async function uploadFotoInspecao(dataUrl, ambienteId) {
+  return await uploadFoto(dataUrl, ambienteId);
+}
+
 export async function createInspecao(reg) {
   const fotoUrl = await uploadFoto(reg.foto, reg.ambienteId);
   const { data, error } = await supabase
@@ -140,6 +144,21 @@ export async function createInspecao(reg) {
     .single();
   if (error) throw error;
   return { row: rowToInspecao(data), fotoUrl };
+}
+
+export async function updateInspecao(id, dados) {
+  const payload = {
+    status: dados.status,
+    observacao: dados.observacao,
+  };
+  if (dados.fotoUrl) payload.foto_url = dados.fotoUrl;
+  const { error } = await supabase.from("inspecoes").update(payload).eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteInspecao(id) {
+  const { error } = await supabase.from("inspecoes").delete().eq("id", id);
+  if (error) throw error;
 }
 
 /* -------------------------- notificações ---------------------------------- */
@@ -200,7 +219,18 @@ export async function gerarResumoIA(inspecoes, periodoLabel) {
   const { data, error } = await supabase.functions.invoke("resumo-ia", {
     body: { inspecoes: payload, periodoLabel },
   });
-  if (error) throw error;
+  if (error) {
+    // Tenta extrair a mensagem real que a Edge Function devolveu no corpo
+    // da resposta (o supabase-js, por padrão, só dá um erro genérico).
+    let detalhe = error.message || String(error);
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const body = await error.context.json();
+        if (body?.error) detalhe = body.error;
+      }
+    } catch { /* mantém a mensagem genérica se não der pra ler o corpo */ }
+    throw new Error(detalhe);
+  }
   if (data?.error) throw new Error(data.error);
   return data.resumo;
 }

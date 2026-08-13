@@ -16,7 +16,7 @@ import { gerarPdfTodosQrCodes } from "./qrPdf";
 import {
   fetchUsers, createUser, updateUser, deleteUser,
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
-  fetchInspecoes, createInspecao,
+  fetchInspecoes, createInspecao, updateInspecao, deleteInspecao, uploadFotoInspecao,
   fetchNotificacoes, createNotificacao, markNotificacaoLida,
   gerarResumoIA,
 } from "./api";
@@ -218,7 +218,7 @@ export default function App() {
       <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-5">
         {isAdmin && tab === "dashboard" && <Dashboard ambientes={ambientes} inspecoes={inspecoes} />}
         {isAdmin && tab === "ambientes" && <AmbientesManager ambientes={ambientes} inspecoes={inspecoes} onChange={reload} />}
-        {isAdmin && tab === "inspecoes" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes} users={users} />}
+        {isAdmin && tab === "inspecoes" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes} users={users} onChange={reload} />}
         {isAdmin && tab === "relatorios" && <Relatorios ambientes={ambientes} inspecoes={inspecoes} />}
         {isAdmin && tab === "notificacoes" && <Notificacoes notificacoes={notificacoes} onChange={reload} />}
         {isAdmin && tab === "usuarios" && <UsuariosManager users={users} currentUser={currentUser} onChange={reload} />}
@@ -231,7 +231,7 @@ export default function App() {
             onClearDirect={clearUrlAmbiente}
           />
         )}
-        {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters />}
+        {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters onChange={reload} />}
       </main>
 
       <footer className="no-print text-center text-[11px] text-gray-400 py-3">
@@ -1041,9 +1041,16 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved }) {
 
 /* ------------------------- histórico / filtros ---------------------------- */
 
-function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters }) {
+function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onChange }) {
   const [filtros, setFiltros] = useState({ dataIni: "", dataFim: "", bloco: "", andar: "", tipo: "", inspetor: "", status: "", ambiente: "" });
   const [expanded, setExpanded] = useState(null);
+  const [editando, setEditando] = useState(null);
+
+  const excluirInspecao = async (i) => {
+    if (!confirm(`Excluir esta inspeção de "${i.ambienteNome}" (${i.data} às ${i.hora})? Essa ação não pode ser desfeita.`)) return;
+    await deleteInspecao(i.id);
+    await onChange?.();
+  };
 
   const blocos = [...new Set(ambientes.map(a => a.bloco))];
   const andares = [...new Set(ambientes.map(a => a.andar))];
@@ -1125,9 +1132,13 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters }) {
                 {open && (
                   <div className="px-3.5 pb-3.5 flex gap-3 border-t border-gray-100 pt-3">
                     {i.foto && <img src={i.foto} alt="evidência" className="w-24 h-24 object-cover rounded-lg border border-gray-200 shrink-0" />}
-                    <div className="text-sm text-gray-600 space-y-1">
+                    <div className="text-sm text-gray-600 space-y-1 flex-1">
                       {i.observacao && <p><span className="font-semibold text-gray-700">Observação:</span> {i.observacao}</p>}
                       {i.geo && <p className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={12} /> {i.geo.lat}, {i.geo.lng}</p>}
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={() => setEditando(i)} className="flex items-center gap-1 text-xs font-medium border border-gray-200 rounded-lg py-1.5 px-2.5 hover:bg-gray-50"><Pencil size={13} /> Editar</button>
+                        <button onClick={() => excluirInspecao(i)} className="flex items-center gap-1 text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-2.5 hover:bg-red-50"><Trash2 size={13} /> Excluir</button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -1136,7 +1147,101 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters }) {
           })}
         </div>
       )}
+
+      {editando && (
+        <Modal onClose={() => setEditando(null)} title="Editar inspeção">
+          <EditarInspecaoForm
+            inspecao={editando}
+            onCancel={() => setEditando(null)}
+            onSaved={async () => { await onChange?.(); setEditando(null); }}
+          />
+        </Modal>
+      )}
     </div>
+  );
+}
+
+function EditarInspecaoForm({ inspecao, onCancel, onSaved }) {
+  const [status, setStatus] = useState(inspecao.status);
+  const [observacao, setObservacao] = useState(inspecao.observacao || "");
+  const [fotoPreview, setFotoPreview] = useState(inspecao.foto);
+  const [fotoData, setFotoData] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const cameraRef = useRef(null);
+  const galeriaRef = useRef(null);
+
+  const obrigatorioObs = status === "nao_limpo" || status === "parcial";
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const dataUrl = await resizeImage(file);
+    setFotoPreview(dataUrl);
+    setFotoData(dataUrl);
+  };
+
+  const salvar = async (e) => {
+    e.preventDefault();
+    setErr("");
+    if (obrigatorioObs && !observacao.trim()) { setErr("Observação obrigatória para este status."); return; }
+    setBusy(true);
+    try {
+      let fotoUrl = null;
+      if (fotoData) fotoUrl = await uploadFotoInspecao(fotoData, inspecao.ambienteId);
+      await updateInspecao(inspecao.id, { status, observacao: observacao.trim(), fotoUrl });
+      onSaved();
+    } catch (e) {
+      setErr("Erro ao salvar: " + (e.message || e));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <form onSubmit={salvar} className="space-y-4">
+      <div className="text-sm text-gray-500">
+        <p className="font-semibold text-gray-700">{inspecao.ambienteNome}</p>
+        <p className="text-xs">{inspecao.data} às {inspecao.hora} · {inspecao.inspetorNome}</p>
+      </div>
+
+      <Field label="Status da limpeza">
+        <div className="grid grid-cols-3 gap-2">
+          {Object.entries(STATUS).map(([key, s]) => {
+            const st = statusStyle(key);
+            const Icon = s.icon;
+            return (
+              <button type="button" key={key} onClick={() => setStatus(key)}
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-lg border-2 text-xs font-medium transition-colors ${status === key ? `${st.border} ${st.bg} ${st.text}` : "border-gray-200 text-gray-400"}`}>
+                <Icon size={18} /> {s.label}
+              </button>
+            );
+          })}
+        </div>
+      </Field>
+
+      <Field label="Foto">
+        <div className="relative w-32 h-32">
+          <img src={fotoPreview} alt="evidência" className="w-32 h-32 object-cover rounded-lg border border-gray-200" />
+        </div>
+        <div className="flex gap-2 mt-2">
+          <button type="button" onClick={() => cameraRef.current?.click()} className="btn-secondary !w-auto px-3 text-xs py-1.5"><Camera size={13} /> Trocar (câmera)</button>
+          <button type="button" onClick={() => galeriaRef.current?.click()} className="btn-secondary !w-auto px-3 text-xs py-1.5"><ImageIcon size={13} /> Trocar (galeria)</button>
+        </div>
+        <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
+        <input ref={galeriaRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </Field>
+
+      <Field label={`Observações ${obrigatorioObs ? "(obrigatória)" : "(opcional)"}`}>
+        <textarea value={observacao} onChange={e => setObservacao(e.target.value)} rows={3} className="input resize-none" />
+      </Field>
+
+      {err && <p className="text-red-600 text-xs font-medium">{err}</p>}
+
+      <div className="flex gap-2 pt-1">
+        <button type="button" onClick={onCancel} className="btn-secondary flex-1">Cancelar</button>
+        <button disabled={busy} className="btn-primary flex-1">{busy ? <Loader2 className="animate-spin" size={16} /> : <Pencil size={16} />} Salvar alterações</button>
+      </div>
+    </form>
   );
 }
 
