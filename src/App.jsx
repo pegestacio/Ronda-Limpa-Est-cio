@@ -4,7 +4,7 @@ import {
   FileDown, QrCode, Camera, Image as ImageIcon, CheckCircle2, AlertTriangle,
   XCircle, Search, Plus, Trash2, Pencil, User, Users, ChevronRight, X,
   MapPin, Clock, Calendar, Filter, Printer, Sheet, ClipboardCheck, ScanLine,
-  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles
+  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles, Sun, Moon
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -43,7 +43,7 @@ function statusStyle(status) {
     case "nao_limpo":
       return { bg: "bg-red-50", text: "text-red-700", border: "border-red-200", dot: "bg-red-500", chip: "bg-red-100 text-red-800" };
     default:
-      return { bg: "bg-gray-50", text: "text-gray-700", border: "border-gray-200", dot: "bg-gray-400", chip: "bg-gray-100 text-gray-800" };
+      return { bg: "bg-gray-50", text: "text-gray-700 dark:text-gray-200", border: "border-gray-200 dark:border-gray-700", dot: "bg-gray-400", chip: "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100" };
   }
 }
 
@@ -81,12 +81,42 @@ function resizeImage(file, maxWidth = 900) {
 }
 
 const SESSION_KEY = "rondalimpa_session";
+const THEME_KEY = "rondalimpa_theme";
+
+function useTheme() {
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+    return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  });
+
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", theme === "dark");
+    localStorage.setItem(THEME_KEY, theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(t => (t === "dark" ? "light" : "dark"));
+  return [theme, toggleTheme];
+}
+
+function ThemeToggle({ theme, onToggle, className = "" }) {
+  return (
+    <button
+      onClick={onToggle}
+      title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+      className={`flex items-center justify-center rounded-lg p-1.5 transition-colors ${className}`}
+    >
+      {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+    </button>
+  );
+}
 
 /* -------------------------------- app ----------------------------------- */
 
 export default function App() {
   const [loading, setLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [theme, toggleTheme] = useTheme();
   const [users, setUsers] = useState([]);
   const [ambientes, setAmbientes] = useState([]);
   const [inspecoes, setInspecoes] = useState([]);
@@ -155,23 +185,23 @@ export default function App() {
 
   if (erroCarregamento) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 p-6">
-        <div className="bg-white border border-red-200 rounded-xl p-6 max-w-md text-center">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950 p-6">
+        <div className="bg-white dark:bg-gray-800 border border-red-200 rounded-xl p-6 max-w-md text-center">
           <AlertTriangle className="mx-auto text-red-500 mb-2" size={28} />
-          <p className="text-sm text-gray-700">{erroCarregamento}</p>
+          <p className="text-sm text-gray-700 dark:text-gray-200">{erroCarregamento}</p>
         </div>
       </div>
     );
   }
 
   if (!currentUser) {
-    return <LoginScreen users={users} onLogin={handleLogin} onUsersChange={reload} />;
+    return <LoginScreen users={users} onLogin={handleLogin} onUsersChange={reload} theme={theme} toggleTheme={toggleTheme} />;
   }
 
   const isAdmin = currentUser.perfil === "administrador";
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col font-sans">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col font-sans">
       {/* topo */}
       <header className="no-print bg-blue-800 text-white sticky top-0 z-20 shadow-md">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -183,6 +213,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <ThemeToggle theme={theme} onToggle={toggleTheme} className="bg-blue-700 hover:bg-blue-600 text-white" />
             <div className="hidden sm:flex flex-col items-end leading-tight">
               <span className="text-sm font-medium">{currentUser.nome}</span>
               <span className="text-[11px] text-blue-200 capitalize">{currentUser.perfil}</span>
@@ -235,7 +266,7 @@ export default function App() {
         {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters onChange={reload} />}
       </main>
 
-      <footer className="no-print text-center text-[11px] text-gray-400 py-3">
+      <footer className="no-print text-center text-[11px] text-gray-400 dark:text-gray-500 py-3">
         Dados salvos no Supabase. QR Code é simulado (seleção do ambiente na Ronda); notificações são internas ao app.
       </footer>
     </div>
@@ -262,7 +293,7 @@ function NavBtn({ active, onClick, icon: Icon, label, badge }) {
 
 /* ------------------------------ login ----------------------------------- */
 
-function LoginScreen({ users, onLogin, onUsersChange }) {
+function LoginScreen({ users, onLogin, onUsersChange, theme, toggleTheme }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [err, setErr] = useState("");
@@ -281,7 +312,8 @@ function LoginScreen({ users, onLogin, onUsersChange }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center p-4 font-sans">
+    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center p-4 font-sans relative">
+      <ThemeToggle theme={theme} onToggle={toggleTheme} className="absolute top-4 right-4 bg-white/15 hover:bg-white/25 text-white" />
       <div className="w-full max-w-sm">
         <div className="text-center mb-6 text-white">
           <div className="logo3d-wrap inline-block mb-3">
@@ -291,7 +323,7 @@ function LoginScreen({ users, onLogin, onUsersChange }) {
           <p className="text-blue-100 text-sm mt-1">Fiscalização de limpeza dos ambientes</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5">
           {precisaConfigurarPrimeiroAdmin ? (
             <ConfiguracaoInicial onUsersChange={onUsersChange} onLogin={onLogin} />
           ) : (
@@ -300,7 +332,7 @@ function LoginScreen({ users, onLogin, onUsersChange }) {
               <Field label="Senha"><input type="password" value={senha} onChange={e => setSenha(e.target.value)} className="input" placeholder="••••••" required /></Field>
               {err && <p className="text-red-600 text-xs font-medium">{err}</p>}
               <button className="btn-primary w-full mt-1"><LogIn size={16} /> Entrar</button>
-              <p className="text-xs text-gray-400 text-center pt-1">Não tem acesso? Peça ao administrador para criar seu usuário.</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 text-center pt-1">Não tem acesso? Peça ao administrador para criar seu usuário.</p>
             </form>
           )}
         </div>
@@ -349,7 +381,7 @@ function ConfiguracaoInicial({ onUsersChange, onLogin }) {
 function Field({ label, children }) {
   return (
     <label className="block">
-      <span className="block text-xs font-semibold text-gray-500 mb-1">{label}</span>
+      <span className="block text-xs font-semibold text-gray-500 dark:text-gray-400 mb-1">{label}</span>
       {children}
     </label>
   );
@@ -426,7 +458,7 @@ function Dashboard({ ambientes, inspecoes }) {
 
   return (
     <div className="space-y-5">
-      <h2 className="font-display font-bold text-xl text-gray-800">Dashboard</h2>
+      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Dashboard</h2>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard label="Total de ambientes" value={ambientes.length} color="blue" />
@@ -481,12 +513,12 @@ function Dashboard({ ambientes, inspecoes }) {
         <Card title="Rankings">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2">Mais ocorrências</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Mais ocorrências</p>
               {rankingAmbientes.length === 0 ? <EmptyMini text="—" /> : (
                 <ul className="space-y-1.5">
                   {rankingAmbientes.map(([nome, total], idx) => (
                     <li key={nome} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 truncate pr-2">{idx + 1}. {nome}</span>
+                      <span className="text-gray-700 dark:text-gray-200 truncate pr-2">{idx + 1}. {nome}</span>
                       <span className="font-semibold text-red-600">{total}</span>
                     </li>
                   ))}
@@ -494,12 +526,12 @@ function Dashboard({ ambientes, inspecoes }) {
               )}
             </div>
             <div>
-              <p className="text-xs font-semibold text-gray-500 mb-2">Ranking inspetores</p>
+              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Ranking inspetores</p>
               {rankingInspetores.length === 0 ? <EmptyMini text="—" /> : (
                 <ul className="space-y-1.5">
                   {rankingInspetores.map(([nome, total], idx) => (
                     <li key={nome} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 truncate pr-2">{idx + 1}. {nome}</span>
+                      <span className="text-gray-700 dark:text-gray-200 truncate pr-2">{idx + 1}. {nome}</span>
                       <span className="font-semibold text-blue-700">{total}</span>
                     </li>
                   ))}
@@ -516,21 +548,21 @@ function Dashboard({ ambientes, inspecoes }) {
 function StatCard({ label, value, color, span }) {
   const colors = {
     blue: "text-blue-800 bg-blue-50", emerald: "text-emerald-700 bg-emerald-50",
-    amber: "text-amber-700 bg-amber-50", red: "text-red-700 bg-red-50", gray: "text-gray-600 bg-gray-100",
+    amber: "text-amber-700 bg-amber-50", red: "text-red-700 bg-red-50", gray: "text-gray-600 dark:text-gray-300 bg-gray-100",
   };
   return (
-    <div className={`rounded-xl p-3.5 bg-white shadow-sm border border-gray-100 ${span ? "col-span-2 md:col-span-1" : ""}`}>
+    <div className={`rounded-xl p-3.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 ${span ? "col-span-2 md:col-span-1" : ""}`}>
       <div className={`text-2xl font-display font-extrabold ${colors[color].split(" ")[0]}`}>{value}</div>
-      <div className="text-xs text-gray-500 mt-0.5">{label}</div>
+      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</div>
     </div>
   );
 }
 
 function Card({ title, children, right }) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-4">
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-semibold text-sm text-gray-700">{title}</h3>
+        <h3 className="font-semibold text-sm text-gray-700 dark:text-gray-200">{title}</h3>
         {right}
       </div>
       {children}
@@ -539,7 +571,7 @@ function Card({ title, children, right }) {
 }
 
 function EmptyMini({ text }) {
-  return <div className="h-[180px] flex items-center justify-center text-sm text-gray-400">{text}</div>;
+  return <div className="h-[180px] flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">{text}</div>;
 }
 
 /* --------------------------- ambientes (admin) ---------------------------- */
@@ -595,7 +627,7 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="font-display font-bold text-xl text-gray-800">Ambientes</h2>
+        <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Ambientes</h2>
         <div className="flex gap-2">
           <button onClick={imprimirTodos} disabled={gerandoPdf || ambientes.length === 0} className="btn-secondary !w-auto px-4 disabled:opacity-40">
             {gerandoPdf ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />} {gerandoPdf ? "Gerando PDF..." : "Imprimir todos os QR Codes"}
@@ -606,12 +638,12 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
       {erroPdf && <p className="text-red-600 text-xs font-medium">{erroPdf}</p>}
 
       <div className="relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou código..." className="input !pl-9" />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-400">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
           <Building2 className="mx-auto mb-2" size={26} />
           Nenhum ambiente cadastrado ainda.
         </div>
@@ -620,18 +652,18 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
           {filtered.map(a => {
             const total = inspecoes.filter(i => i.ambienteId === a.id).length;
             return (
-              <div key={a.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+              <div key={a.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
                 <div className="flex items-start justify-between">
                   <div>
-                    <h3 className="font-semibold text-gray-800">{a.nome}</h3>
-                    <p className="text-xs text-gray-400">{a.tipo} · Bloco {a.bloco} · {a.andar}º andar</p>
+                    <h3 className="font-semibold text-gray-800 dark:text-gray-100">{a.nome}</h3>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{a.tipo} · Bloco {a.bloco} · {a.andar}º andar</p>
                   </div>
                   <span className="text-[10px] font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{a.codigo}</span>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">{total} inspeção(ões) registrada(s)</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{total} inspeção(ões) registrada(s)</p>
                 <div className="flex gap-2 mt-3">
-                  <button onClick={() => setSelectedQr(a)} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 rounded-lg py-1.5 hover:bg-gray-50"><QrCode size={13} /> Código</button>
-                  <button onClick={() => { setEditing(a); setShowForm(true); }} className="flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 rounded-lg py-1.5 px-2.5 hover:bg-gray-50"><Pencil size={13} /></button>
+                  <button onClick={() => setSelectedQr(a)} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700"><QrCode size={13} /> Código</button>
+                  <button onClick={() => { setEditing(a); setShowForm(true); }} className="flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil size={13} /></button>
                   <button onClick={() => excluir(a)} className="flex items-center justify-center gap-1 text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-2.5 hover:bg-red-50"><Trash2 size={13} /></button>
                 </div>
               </div>
@@ -668,12 +700,12 @@ function AmbienteQrView({ ambiente }) {
 
   return (
     <div className="text-center py-2">
-      <div className="mx-auto w-52 h-52 border border-gray-200 rounded-xl flex items-center justify-center bg-white p-3">
+      <div className="mx-auto w-52 h-52 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center bg-white dark:bg-gray-800 p-3">
         {qr ? <img src={qr} alt={`QR code de ${ambiente.nome}`} className="w-full h-full" /> : <Loader2 className="animate-spin text-blue-700" size={22} />}
       </div>
       <p className="font-mono font-bold text-lg text-blue-800 mt-3">{ambiente.codigo}</p>
-      <p className="text-sm text-gray-600 mt-1">{ambiente.nome}</p>
-      <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{ambiente.nome}</p>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 leading-relaxed">
         Aponte a câmera do celular pra este QR (não precisa abrir o app antes) — ele leva direto
         pra ficha de inspeção deste ambiente. O inspetor precisa estar logado no navegador do celular.
       </p>
@@ -715,10 +747,10 @@ function AmbienteForm({ initial, busy, onSubmit, onCancel }) {
 function Modal({ title, children, onClose }) {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 print-area" onClick={e => e.stopPropagation()}>
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto p-5 print-area" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-display font-bold text-gray-800">{title}</h3>
-          <button onClick={onClose} className="no-print text-gray-400 hover:text-gray-600"><X size={18} /></button>
+          <h3 className="font-display font-bold text-gray-800 dark:text-gray-100">{title}</h3>
+          <button onClick={onClose} className="no-print text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300"><X size={18} /></button>
         </div>
         {children}
       </div>
@@ -772,26 +804,26 @@ function UsuariosManager({ users, currentUser, onChange }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="font-display font-bold text-xl text-gray-800">Usuários</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Crie um acesso para cada inspetor e envie e-mail/senha para eles.</p>
+          <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Usuários</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Crie um acesso para cada inspetor e envie e-mail/senha para eles.</p>
         </div>
         <button onClick={() => { setEditing(null); setErr(""); setShowForm(true); }} className="btn-primary !w-auto px-4"><UserPlus size={16} /> Novo usuário</button>
       </div>
 
       <div className="space-y-2">
         {users.map(u => (
-          <div key={u.id} className="bg-white rounded-xl border border-gray-100 shadow-sm p-3.5 flex items-center gap-3">
-            <span className={`shrink-0 rounded-lg p-2 ${u.perfil === "administrador" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+          <div key={u.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-3.5 flex items-center gap-3">
+            <span className={`shrink-0 rounded-lg p-2 ${u.perfil === "administrador" ? "bg-blue-100 text-blue-700" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"}`}>
               {u.perfil === "administrador" ? <ShieldCheck size={16} /> : <User size={16} />}
             </span>
             <div className="flex-1 min-w-0">
-              <p className="font-semibold text-sm text-gray-800 truncate">{u.nome} {u.id === currentUser.id && <span className="text-xs font-normal text-gray-400">(você)</span>}</p>
-              <p className="text-xs text-gray-400 truncate">{u.email} · <span className="capitalize">{u.perfil}</span></p>
+              <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{u.nome} {u.id === currentUser.id && <span className="text-xs font-normal text-gray-400 dark:text-gray-500">(você)</span>}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{u.email} · <span className="capitalize">{u.perfil}</span></p>
             </div>
-            <button onClick={() => copiarCredenciais(u)} className="shrink-0 flex items-center gap-1 text-xs font-medium border border-gray-200 rounded-lg py-1.5 px-2.5 hover:bg-gray-50">
+            <button onClick={() => copiarCredenciais(u)} className="shrink-0 flex items-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700">
               {copiedId === u.id ? <><Check size={13} className="text-emerald-600" /> Copiado</> : <><Copy size={13} /> Credenciais</>}
             </button>
-            <button onClick={() => { setEditing(u); setErr(""); setShowForm(true); }} className="shrink-0 flex items-center justify-center text-xs font-medium border border-gray-200 rounded-lg py-1.5 px-2.5 hover:bg-gray-50"><Pencil size={13} /></button>
+            <button onClick={() => { setEditing(u); setErr(""); setShowForm(true); }} className="shrink-0 flex items-center justify-center text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil size={13} /></button>
             <button onClick={() => excluir(u)} className="shrink-0 flex items-center justify-center text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-2.5 hover:bg-red-50"><Trash2 size={13} /></button>
           </div>
         ))}
@@ -818,14 +850,14 @@ function UsuarioForm({ initial, busy, err, onSubmit, onCancel }) {
       <Field label="E-mail"><input type="email" value={email} onChange={e => setEmail(e.target.value)} className="input" placeholder="email@estacio.br" required /></Field>
       <Field label="Senha">
         <div className="flex items-center gap-2">
-          <KeyRound size={14} className="text-gray-400 shrink-0" />
+          <KeyRound size={14} className="text-gray-400 dark:text-gray-500 shrink-0" />
           <input value={senha} onChange={e => setSenha(e.target.value)} className="input" placeholder="Defina uma senha" required />
         </div>
       </Field>
       <Field label="Perfil de acesso">
         <div className="flex gap-2">
-          <button type="button" onClick={() => setPerfil("inspetor")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border ${perfil === "inspetor" ? "bg-blue-50 border-blue-600 text-blue-800" : "border-gray-200 text-gray-500"}`}><User size={14} /> Inspetor</button>
-          <button type="button" onClick={() => setPerfil("administrador")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border ${perfil === "administrador" ? "bg-blue-50 border-blue-600 text-blue-800" : "border-gray-200 text-gray-500"}`}><Users size={14} /> Admin</button>
+          <button type="button" onClick={() => setPerfil("inspetor")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border ${perfil === "inspetor" ? "bg-blue-50 border-blue-600 text-blue-800" : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"}`}><User size={14} /> Inspetor</button>
+          <button type="button" onClick={() => setPerfil("administrador")} className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium border ${perfil === "administrador" ? "bg-blue-50 border-blue-600 text-blue-800" : "border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400"}`}><Users size={14} /> Admin</button>
         </div>
       </Field>
       {err && <p className="text-red-600 text-xs font-medium">{err}</p>}
@@ -873,31 +905,31 @@ function Ronda({ ambientes, currentUser, onSaved, directAmbiente, onClearDirect,
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
         <ScanLine className="text-blue-700 shrink-0 mt-0.5" size={20} />
         <div>
-          <h2 className="font-display font-bold text-gray-800">Nova ronda</h2>
-          <p className="text-sm text-gray-600 mt-0.5">
+          <h2 className="font-display font-bold text-gray-800 dark:text-gray-100">Nova ronda</h2>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-0.5">
             Escaneie o QR Code na porta do ambiente com a câmera do celular, ou toque no ambiente abaixo pra abrir a ficha manualmente.
           </p>
         </div>
       </div>
 
       <div className="relative">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar ambiente por nome ou código..." className="input !pl-9" />
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-400">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
           <Building2 className="mx-auto mb-2" size={26} /> Nenhum ambiente encontrado.
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(a => (
-            <button key={a.id} onClick={() => setSelected(a)} className="text-left bg-white rounded-xl border border-gray-100 shadow-sm p-4 hover:border-blue-400 hover:shadow-md transition-all">
+            <button key={a.id} onClick={() => setSelected(a)} className="text-left bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 hover:border-blue-400 hover:shadow-md transition-all">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-800">{a.nome}</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-100">{a.nome}</span>
                 <ChevronRight size={16} className="text-gray-300" />
               </div>
-              <p className="text-xs text-gray-400 mt-1">{a.tipo} · Bloco {a.bloco} · {a.andar}º andar</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{a.tipo} · Bloco {a.bloco} · {a.andar}º andar</p>
               <span className="inline-block mt-2 text-[10px] font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{a.codigo}</span>
             </button>
           ))}
@@ -996,16 +1028,16 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
 
   return (
     <div className="max-w-xl">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-3"><ArrowLeft size={15} /> Voltar</button>
+      <button onClick={onBack} className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:text-gray-200 mb-3"><ArrowLeft size={15} /> Voltar</button>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-5">
         <div className="flex items-center justify-between mb-1">
-          <h2 className="font-display font-bold text-lg text-gray-800">{ambiente.nome}</h2>
+          <h2 className="font-display font-bold text-lg text-gray-800 dark:text-gray-100">{ambiente.nome}</h2>
           <span className="text-[10px] font-mono bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">{ambiente.codigo}</span>
         </div>
-        <p className="text-xs text-gray-400 mb-4">{ambiente.tipo} · Bloco {ambiente.bloco} · {ambiente.andar}º andar</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">{ambiente.tipo} · Bloco {ambiente.bloco} · {ambiente.andar}º andar</p>
 
-        <div className="flex gap-4 text-xs text-gray-500 mb-4">
+        <div className="flex gap-4 text-xs text-gray-500 dark:text-gray-400 mb-4">
           <span className="flex items-center gap-1"><Calendar size={13} /> {data}</span>
           <span className="flex items-center gap-1"><Clock size={13} /> {hora}</span>
           <span className="flex items-center gap-1"><User size={13} /> {currentUser.nome}</span>
@@ -1019,7 +1051,7 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
                 const Icon = s.icon;
                 return (
                   <button type="button" key={key} onClick={() => setStatus(key)}
-                    className={`flex flex-col items-center gap-1 py-2.5 rounded-lg border-2 text-xs font-medium transition-colors ${status === key ? `${st.border} ${st.bg} ${st.text}` : "border-gray-200 text-gray-400"}`}>
+                    className={`flex flex-col items-center gap-1 py-2.5 rounded-lg border-2 text-xs font-medium transition-colors ${status === key ? `${st.border} ${st.bg} ${st.text}` : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
                     <Icon size={18} /> {s.label}
                   </button>
                 );
@@ -1030,13 +1062,13 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
           <Field label={`Foto ${!fotoData ? "(obrigatória)" : ""}`}>
             {fotoPreview ? (
               <div className="relative w-32 h-32">
-                <img src={fotoPreview} alt="evidência" className="w-32 h-32 object-cover rounded-lg border border-gray-200" />
+                <img src={fotoPreview} alt="evidência" className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
                 <button type="button" onClick={() => { setFotoPreview(null); setFotoData(null); }} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"><X size={12} /></button>
               </div>
             ) : (
               <div className="flex gap-2">
-                <button type="button" onClick={() => cameraRef.current?.click()} className="flex-1 flex flex-col items-center gap-1 border-2 border-dashed border-gray-300 rounded-lg py-4 text-gray-500 hover:border-blue-400 hover:text-blue-600"><Camera size={20} /><span className="text-xs">Câmera</span></button>
-                <button type="button" onClick={() => galeriaRef.current?.click()} className="flex-1 flex flex-col items-center gap-1 border-2 border-dashed border-gray-300 rounded-lg py-4 text-gray-500 hover:border-blue-400 hover:text-blue-600"><ImageIcon size={20} /><span className="text-xs">Galeria</span></button>
+                <button type="button" onClick={() => cameraRef.current?.click()} className="flex-1 flex flex-col items-center gap-1 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-4 text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600"><Camera size={20} /><span className="text-xs">Câmera</span></button>
+                <button type="button" onClick={() => galeriaRef.current?.click()} className="flex-1 flex flex-col items-center gap-1 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg py-4 text-gray-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600"><ImageIcon size={20} /><span className="text-xs">Galeria</span></button>
               </div>
             )}
             <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFile} />
@@ -1049,7 +1081,7 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
 
           <Field label="Geolocalização (opcional)">
             {geo ? (
-              <p className="text-xs text-gray-500 flex items-center gap-1"><MapPin size={13} /> Lat {geo.lat}, Lng {geo.lng}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1"><MapPin size={13} /> Lat {geo.lat}, Lng {geo.lng}</p>
             ) : (
               <button type="button" onClick={pedirGeo} className="btn-secondary !w-auto px-3 text-xs py-1.5">
                 <MapPin size={13} /> {geoStatus === "buscando" ? "Buscando..." : geoStatus === "indisponível" ? "Indisponível — tentar novamente" : "Capturar localização"}
@@ -1098,10 +1130,10 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display font-bold text-xl text-gray-800">{minimalFilters ? "Minhas inspeções" : "Histórico de inspeções"}</h2>
+      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">{minimalFilters ? "Minhas inspeções" : "Histórico de inspeções"}</h2>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 mb-3"><Filter size={14} /> Filtros</div>
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3"><Filter size={14} /> Filtros</div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           <input type="date" className="input !text-xs" value={filtros.dataIni} onChange={e => setFiltros(f => ({ ...f, dataIni: e.target.value }))} />
           <input type="date" className="input !text-xs" value={filtros.dataFim} onChange={e => setFiltros(f => ({ ...f, dataFim: e.target.value }))} />
@@ -1137,7 +1169,7 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-400">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
           <Inbox className="mx-auto mb-2" size={26} /> Nenhuma inspeção encontrada com os filtros atuais.
         </div>
       ) : (
@@ -1147,23 +1179,23 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
             const Icon = STATUS[i.status].icon;
             const open = expanded === i.id;
             return (
-              <div key={i.id} className={`bg-white rounded-xl border ${st.border} shadow-sm overflow-hidden`}>
+              <div key={i.id} className={`bg-white dark:bg-gray-800 rounded-xl border ${st.border} shadow-sm overflow-hidden`}>
                 <button onClick={() => setExpanded(open ? null : i.id)} className="w-full flex items-center gap-3 p-3.5 text-left">
                   <span className={`shrink-0 ${st.chip} rounded-lg p-2`}><Icon size={16} /></span>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 truncate">{i.ambienteNome}</p>
-                    <p className="text-xs text-gray-400">{i.data} às {i.hora} · {i.inspetorNome}</p>
+                    <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{i.ambienteNome}</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">{i.data} às {i.hora} · {i.inspetorNome}</p>
                   </div>
                   <span className={`text-xs font-semibold ${st.text} shrink-0`}>{STATUS[i.status].label}</span>
                 </button>
                 {open && (
-                  <div className="px-3.5 pb-3.5 flex gap-3 border-t border-gray-100 pt-3">
-                    {i.foto && <img src={i.foto} alt="evidência" className="w-24 h-24 object-cover rounded-lg border border-gray-200 shrink-0" />}
-                    <div className="text-sm text-gray-600 space-y-1 flex-1">
-                      {i.observacao && <p><span className="font-semibold text-gray-700">Observação:</span> {i.observacao}</p>}
-                      {i.geo && <p className="text-xs text-gray-400 flex items-center gap-1"><MapPin size={12} /> {i.geo.lat}, {i.geo.lng}</p>}
+                  <div className="px-3.5 pb-3.5 flex gap-3 border-t border-gray-100 dark:border-gray-700 pt-3">
+                    {i.foto && <img src={i.foto} alt="evidência" className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-700 shrink-0" />}
+                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 flex-1">
+                      {i.observacao && <p><span className="font-semibold text-gray-700 dark:text-gray-200">Observação:</span> {i.observacao}</p>}
+                      {i.geo && <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1"><MapPin size={12} /> {i.geo.lat}, {i.geo.lng}</p>}
                       <div className="flex gap-2 pt-1">
-                        <button onClick={() => setEditando(i)} className="flex items-center gap-1 text-xs font-medium border border-gray-200 rounded-lg py-1.5 px-2.5 hover:bg-gray-50"><Pencil size={13} /> Editar</button>
+                        <button onClick={() => setEditando(i)} className="flex items-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil size={13} /> Editar</button>
                         <button onClick={() => excluirInspecao(i)} className="flex items-center gap-1 text-xs font-medium border border-red-200 text-red-600 rounded-lg py-1.5 px-2.5 hover:bg-red-50"><Trash2 size={13} /> Excluir</button>
                       </div>
                     </div>
@@ -1226,8 +1258,8 @@ function EditarInspecaoForm({ inspecao, onCancel, onSaved }) {
 
   return (
     <form onSubmit={salvar} className="space-y-4">
-      <div className="text-sm text-gray-500">
-        <p className="font-semibold text-gray-700">{inspecao.ambienteNome}</p>
+      <div className="text-sm text-gray-500 dark:text-gray-400">
+        <p className="font-semibold text-gray-700 dark:text-gray-200">{inspecao.ambienteNome}</p>
         <p className="text-xs">{inspecao.data} às {inspecao.hora} · {inspecao.inspetorNome}</p>
       </div>
 
@@ -1238,7 +1270,7 @@ function EditarInspecaoForm({ inspecao, onCancel, onSaved }) {
             const Icon = s.icon;
             return (
               <button type="button" key={key} onClick={() => setStatus(key)}
-                className={`flex flex-col items-center gap-1 py-2.5 rounded-lg border-2 text-xs font-medium transition-colors ${status === key ? `${st.border} ${st.bg} ${st.text}` : "border-gray-200 text-gray-400"}`}>
+                className={`flex flex-col items-center gap-1 py-2.5 rounded-lg border-2 text-xs font-medium transition-colors ${status === key ? `${st.border} ${st.bg} ${st.text}` : "border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500"}`}>
                 <Icon size={18} /> {s.label}
               </button>
             );
@@ -1248,7 +1280,7 @@ function EditarInspecaoForm({ inspecao, onCancel, onSaved }) {
 
       <Field label="Foto">
         <div className="relative w-32 h-32">
-          <img src={fotoPreview} alt="evidência" className="w-32 h-32 object-cover rounded-lg border border-gray-200" />
+          <img src={fotoPreview} alt="evidência" className="w-32 h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
         </div>
         <div className="flex gap-2 mt-2">
           <button type="button" onClick={() => cameraRef.current?.click()} className="btn-secondary !w-auto px-3 text-xs py-1.5"><Camera size={13} /> Trocar (câmera)</button>
@@ -1329,9 +1361,9 @@ function Relatorios({ ambientes, inspecoes }) {
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display font-bold text-xl text-gray-800">Relatórios</h2>
+      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Relatórios</h2>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
           <input type="date" className="input !text-xs" value={filtros.dataIni} onChange={e => setFiltros(f => ({ ...f, dataIni: e.target.value }))} />
           <input type="date" className="input !text-xs" value={filtros.dataFim} onChange={e => setFiltros(f => ({ ...f, dataFim: e.target.value }))} />
@@ -1340,7 +1372,7 @@ function Relatorios({ ambientes, inspecoes }) {
             {Object.entries(STATUS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
           </select>
         </div>
-        <p className="text-xs text-gray-400">{filtered.length} registro(s) no período selecionado.</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500">{filtered.length} registro(s) no período selecionado.</p>
         <div className="flex flex-wrap gap-2">
           <button onClick={exportarCSV} disabled={filtered.length === 0} className="btn-secondary !w-auto px-3.5 disabled:opacity-40"><FileDown size={15} /> Exportar CSV</button>
           <button onClick={exportarExcel} disabled={filtered.length === 0} className="btn-secondary !w-auto px-3.5 disabled:opacity-40"><Sheet size={15} /> Exportar Excel</button>
@@ -1348,23 +1380,23 @@ function Relatorios({ ambientes, inspecoes }) {
         </div>
       </div>
 
-      <div className="no-print bg-white rounded-xl border border-gray-100 shadow-sm p-4 space-y-3">
+      <div className="no-print bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 space-y-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700"><Sparkles size={16} className="text-blue-700" /> Resumo com IA</div>
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 dark:text-gray-200"><Sparkles size={16} className="text-blue-700" /> Resumo com IA</div>
           <button onClick={gerarResumo} disabled={resumoBusy || filtered.length === 0} className="btn-primary !w-auto px-3.5 disabled:opacity-40">
             {resumoBusy ? <Loader2 className="animate-spin" size={15} /> : <Sparkles size={15} />} {resumoBusy ? "Gerando..." : "Gerar resumo"}
           </button>
         </div>
         {resumoErr && <p className="text-red-600 text-xs font-medium">{resumoErr}</p>}
-        {resumo && <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line bg-blue-50 rounded-lg p-3">{resumo}</p>}
+        {resumo && <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line bg-blue-50 rounded-lg p-3">{resumo}</p>}
         {!resumo && !resumoErr && !resumoBusy && (
-          <p className="text-xs text-gray-400">Gera um resumo em português das inspeções filtradas acima — destaques, problemas recorrentes e uma recomendação.</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500">Gera um resumo em português das inspeções filtradas acima — destaques, problemas recorrentes e uma recomendação.</p>
         )}
       </div>
 
-      <div className="print-area bg-white rounded-xl border border-gray-100 shadow-sm overflow-x-auto">
+      <div className="print-area bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+          <thead className="bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 text-xs uppercase">
             <tr>
               <th className="text-left px-3 py-2">Ambiente</th>
               <th className="text-left px-3 py-2">Status</th>
@@ -1376,10 +1408,10 @@ function Relatorios({ ambientes, inspecoes }) {
           </thead>
           <tbody>
             {linhas.map((l, idx) => (
-              <tr key={idx} className="border-t border-gray-100">
-                <td className="px-3 py-2 font-medium text-gray-700">{l.Ambiente}</td>
+              <tr key={idx} className="border-t border-gray-100 dark:border-gray-700">
+                <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{l.Ambiente}</td>
                 <td className="px-3 py-2">{l.Status}</td>
-                <td className="px-3 py-2 text-gray-500">{l.Observacao || "—"}</td>
+                <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{l.Observacao || "—"}</td>
                 <td className="px-3 py-2">{l.Responsavel}</td>
                 <td className="px-3 py-2">{l.Data}</td>
                 <td className="px-3 py-2">{l.Hora}</td>
@@ -1387,7 +1419,7 @@ function Relatorios({ ambientes, inspecoes }) {
             ))}
           </tbody>
         </table>
-        {linhas.length === 0 && <p className="text-center text-gray-400 text-sm py-8">Nenhum dado para exportar.</p>}
+        {linhas.length === 0 && <p className="text-center text-gray-400 dark:text-gray-500 text-sm py-8">Nenhum dado para exportar.</p>}
       </div>
     </div>
   );
@@ -1419,8 +1451,8 @@ function Notificacoes({ notificacoes, onChange }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="font-display font-bold text-xl text-gray-800">Notificações</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Geradas automaticamente sempre que um ambiente é marcado como "Não Limpo".</p>
+          <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Notificações</h2>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Geradas automaticamente sempre que um ambiente é marcado como "Não Limpo".</p>
         </div>
         {notificacoes.some(n => n.lida) && (
           <button onClick={limparLidas} className="btn-secondary !w-auto px-3.5 text-xs"><Trash2 size={13} /> Limpar lidas</button>
@@ -1428,18 +1460,18 @@ function Notificacoes({ notificacoes, onChange }) {
       </div>
 
       {notificacoes.length === 0 ? (
-        <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-400">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
           <Bell className="mx-auto mb-2" size={26} /> Nenhuma notificação até o momento.
         </div>
       ) : (
         <div className="space-y-2">
           {notificacoes.map(n => (
-            <div key={n.id} className={`bg-white rounded-xl border shadow-sm p-3.5 flex gap-3 ${n.lida ? "border-gray-100 opacity-70" : "border-red-200"}`}>
+            <div key={n.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-3.5 flex gap-3 ${n.lida ? "border-gray-100 dark:border-gray-700 opacity-70" : "border-red-200"}`}>
               {n.foto && <img src={n.foto} className="w-16 h-16 object-cover rounded-lg shrink-0" alt="evidência" />}
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-800">{n.ambienteNome} marcado como Não Limpo</p>
-                <p className="text-xs text-gray-400">{n.data} às {n.hora} · {n.inspetorNome}</p>
-                {n.observacao && <p className="text-xs text-gray-600 mt-1">{n.observacao}</p>}
+                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">{n.ambienteNome} marcado como Não Limpo</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{n.data} às {n.hora} · {n.inspetorNome}</p>
+                {n.observacao && <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{n.observacao}</p>}
               </div>
               <div className="shrink-0 flex flex-col items-end gap-1.5">
                 {!n.lida && (
