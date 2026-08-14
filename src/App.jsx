@@ -17,7 +17,7 @@ import {
   fetchUsers, createUser, updateUser, deleteUser,
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
   fetchInspecoes, createInspecao, updateInspecao, deleteInspecao, uploadFotoInspecao,
-  fetchNotificacoes, createNotificacao, markNotificacaoLida,
+  fetchNotificacoes, createNotificacao, markNotificacaoLida, deleteNotificacao,
   gerarResumoIA, enviarEmailNotificacao,
 } from "./api";
 
@@ -1401,10 +1401,31 @@ function Notificacoes({ notificacoes, onChange }) {
     await onChange();
   };
 
+  const excluir = async (n) => {
+    if (!confirm(`Excluir esta notificação de "${n.ambienteNome}"?`)) return;
+    await deleteNotificacao(n.id);
+    await onChange();
+  };
+
+  const limparLidas = async () => {
+    const lidas = notificacoes.filter(n => n.lida);
+    if (lidas.length === 0) return;
+    if (!confirm(`Excluir todas as ${lidas.length} notificações já lidas?`)) return;
+    await Promise.all(lidas.map(n => deleteNotificacao(n.id)));
+    await onChange();
+  };
+
   return (
     <div className="space-y-4">
-      <h2 className="font-display font-bold text-xl text-gray-800">Notificações</h2>
-      <p className="text-xs text-gray-400 -mt-2">Geradas automaticamente sempre que um ambiente é marcado como "Não Limpo". (Envio por e-mail simulado aqui como notificação interna.)</p>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <h2 className="font-display font-bold text-xl text-gray-800">Notificações</h2>
+          <p className="text-xs text-gray-400 mt-0.5">Geradas automaticamente sempre que um ambiente é marcado como "Não Limpo".</p>
+        </div>
+        {notificacoes.some(n => n.lida) && (
+          <button onClick={limparLidas} className="btn-secondary !w-auto px-3.5 text-xs"><Trash2 size={13} /> Limpar lidas</button>
+        )}
+      </div>
 
       {notificacoes.length === 0 ? (
         <div className="bg-white rounded-xl border border-dashed border-gray-300 p-10 text-center text-gray-400">
@@ -1420,9 +1441,12 @@ function Notificacoes({ notificacoes, onChange }) {
                 <p className="text-xs text-gray-400">{n.data} às {n.hora} · {n.inspetorNome}</p>
                 {n.observacao && <p className="text-xs text-gray-600 mt-1">{n.observacao}</p>}
               </div>
-              {!n.lida && (
-                <button onClick={() => marcarLida(n)} className="shrink-0 text-xs font-medium text-blue-700 hover:underline self-start">Marcar como lida</button>
-              )}
+              <div className="shrink-0 flex flex-col items-end gap-1.5">
+                {!n.lida && (
+                  <button onClick={() => marcarLida(n)} className="text-xs font-medium text-blue-700 hover:underline">Marcar como lida</button>
+                )}
+                <button onClick={() => excluir(n)} className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"><Trash2 size={12} /> Excluir</button>
+              </div>
             </div>
           ))}
         </div>

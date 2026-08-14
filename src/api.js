@@ -205,6 +205,11 @@ export async function markNotificacaoLida(id) {
   if (error) throw error;
 }
 
+export async function deleteNotificacao(id) {
+  const { error } = await supabase.from("notificacoes").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function enviarEmailNotificacao(dados) {
   const { data, error } = await supabase.functions.invoke("notificar-email", { body: dados });
   if (error) {
