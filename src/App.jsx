@@ -4,7 +4,8 @@ import {
   FileDown, QrCode, Camera, Image as ImageIcon, CheckCircle2, AlertTriangle,
   XCircle, Search, Plus, Trash2, Pencil, User, Users, ChevronRight, X,
   MapPin, Clock, Calendar, Filter, Printer, Sheet, ClipboardCheck, ScanLine,
-  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles, Sun, Moon
+  ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles, Sun, Moon,
+  MessageCircle, Send
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -18,7 +19,7 @@ import {
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
   fetchInspecoes, createInspecao, updateInspecao, deleteInspecao, uploadFotoInspecao,
   fetchNotificacoes, createNotificacao, markNotificacaoLida, deleteNotificacao,
-  gerarResumoIA, enviarEmailNotificacao,
+  gerarResumoIA, enviarEmailNotificacao, enviarMensagemChat,
 } from "./api";
 
 /* ----------------------------- constantes ----------------------------- */
@@ -269,6 +270,8 @@ export default function App() {
       <footer className="no-print text-center text-[11px] text-gray-400 dark:text-gray-500 py-3">
         Dados salvos no Supabase. QR Code é simulado (seleção do ambiente na Ronda); notificações são internas ao app.
       </footer>
+
+      {isAdmin && <ChatIA ambientes={ambientes} inspecoes={inspecoes} />}
     </div>
   );
 }
@@ -1425,7 +1428,100 @@ function Relatorios({ ambientes, inspecoes }) {
   );
 }
 
-/* ------------------------------ notificações -------------------------------- */
+/* --------------------------------- chat IA ---------------------------------- */
+
+function ChatIA({ ambientes, inspecoes }) {
+  const [aberto, setAberto] = useState(false);
+  const [mensagens, setMensagens] = useState([
+    { role: "assistant", content: "Oi! Pode me perguntar coisas sobre os ambientes e inspeções — por exemplo: \"quantas inspeções foram feitas essa semana?\" ou \"qual ambiente tem mais ocorrências de não limpo?\"." },
+  ]);
+  const [input, setInput] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const scrollRef = useRef(null);
+
+  useEffect(() => {
+    if (aberto && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [mensagens, aberto, busy]);
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    const texto = input.trim();
+    if (!texto || busy) return;
+    setErr("");
+    const novasMensagens = [...mensagens, { role: "user", content: texto }];
+    setMensagens(novasMensagens);
+    setInput("");
+    setBusy(true);
+    try {
+      const resposta = await enviarMensagemChat(novasMensagens, ambientes, inspecoes);
+      setMensagens(m => [...m, { role: "assistant", content: resposta }]);
+    } catch (e) {
+      setErr("Não foi possível responder: " + (e.message || e));
+    }
+    setBusy(false);
+  };
+
+  return (
+    <div className="no-print">
+      <button
+        onClick={() => setAberto(v => !v)}
+        className="fixed bottom-5 right-5 z-40 bg-blue-700 hover:bg-blue-800 text-white rounded-full p-3.5 shadow-lg transition-colors"
+        title="Assistente RondaLimpa"
+      >
+        {aberto ? <X size={22} /> : <MessageCircle size={22} />}
+      </button>
+
+      {aberto && (
+        <div className="fixed bottom-20 right-5 z-40 w-[92vw] max-w-sm h-[70vh] max-h-[520px] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
+          <div className="bg-blue-800 text-white px-4 py-3 flex items-center gap-2">
+            <Sparkles size={16} />
+            <div>
+              <p className="text-sm font-semibold leading-tight">Assistente RondaLimpa</p>
+              <p className="text-[11px] text-blue-200 leading-tight">Pergunte sobre ambientes e inspeções</p>
+            </div>
+          </div>
+
+          <div ref={scrollRef} className="flex-1 overflow-y-auto p-3 space-y-2.5">
+            {mensagens.map((m, idx) => (
+              <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-line ${
+                  m.role === "user"
+                    ? "bg-blue-700 text-white rounded-br-sm"
+                    : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm"
+                }`}>
+                  {m.content}
+                </div>
+              </div>
+            ))}
+            {busy && (
+              <div className="flex justify-start">
+                <div className="bg-gray-100 dark:bg-gray-700 rounded-xl rounded-bl-sm px-3 py-2">
+                  <Loader2 className="animate-spin text-gray-400 dark:text-gray-500" size={15} />
+                </div>
+              </div>
+            )}
+            {err && <p className="text-red-600 dark:text-red-400 text-xs font-medium">{err}</p>}
+          </div>
+
+          <form onSubmit={enviar} className="border-t border-gray-100 dark:border-gray-700 p-2.5 flex gap-2">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              placeholder="Digite sua pergunta..."
+              className="input flex-1 !py-2"
+            />
+            <button type="submit" disabled={busy || !input.trim()} className="btn-primary !w-auto px-3 disabled:opacity-40">
+              <Send size={15} />
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Notificacoes({ notificacoes, onChange }) {
   const marcarLida = async (n) => {

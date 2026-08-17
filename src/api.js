@@ -255,3 +255,31 @@ export async function gerarResumoIA(inspecoes, periodoLabel) {
   if (data?.error) throw new Error(data.error);
   return data.resumo;
 }
+
+/* --------------------------------- chat IA --------------------------------- */
+
+export async function enviarMensagemChat(mensagens, ambientes, inspecoes) {
+  const payload = (inspecoes || []).map(i => ({
+    data: i.data,
+    hora: i.hora,
+    ambienteNome: i.ambienteNome,
+    status: i.status === "limpo" ? "Limpo" : i.status === "parcial" ? "Limpeza Parcial" : "Não Limpo",
+    observacao: i.observacao,
+    inspetorNome: i.inspetorNome,
+  }));
+  const { data, error } = await supabase.functions.invoke("chat-ia", {
+    body: { mensagens, ambientes, inspecoes: payload },
+  });
+  if (error) {
+    let detalhe = error.message || String(error);
+    try {
+      if (error.context && typeof error.context.json === "function") {
+        const body = await error.context.json();
+        if (body?.error) detalhe = body.error;
+      }
+    } catch { /* mantém a mensagem genérica se não der pra ler o corpo */ }
+    throw new Error(detalhe);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data.resposta;
+}
