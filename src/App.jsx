@@ -271,7 +271,7 @@ export default function App() {
         Dados salvos no Supabase. QR Code é simulado (seleção do ambiente na Ronda); notificações são internas ao app.
       </footer>
 
-      {isAdmin && <ChatIA ambientes={ambientes} inspecoes={inspecoes} />}
+      {isAdmin && <ChatIA ambientes={ambientes} inspecoes={inspecoes} users={users} />}
     </div>
   );
 }
@@ -1430,7 +1430,7 @@ function Relatorios({ ambientes, inspecoes }) {
 
 /* --------------------------------- chat IA ---------------------------------- */
 
-function ChatIA({ ambientes, inspecoes }) {
+function ChatIA({ ambientes, inspecoes, users }) {
   const [aberto, setAberto] = useState(false);
   const [mensagens, setMensagens] = useState([
     { role: "assistant", content: "Oi! Pode me perguntar coisas sobre os ambientes e inspeções — por exemplo: \"quantas inspeções foram feitas essa semana?\" ou \"qual ambiente tem mais ocorrências de não limpo?\"." },
@@ -1456,7 +1456,7 @@ function ChatIA({ ambientes, inspecoes }) {
     setInput("");
     setBusy(true);
     try {
-      const resposta = await enviarMensagemChat(novasMensagens, ambientes, inspecoes);
+      const resposta = await enviarMensagemChat(novasMensagens, ambientes, inspecoes, users);
       setMensagens(m => [...m, { role: "assistant", content: resposta }]);
     } catch (e) {
       setErr("Não foi possível responder: " + (e.message || e));

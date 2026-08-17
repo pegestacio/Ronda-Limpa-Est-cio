@@ -258,7 +258,7 @@ export async function gerarResumoIA(inspecoes, periodoLabel) {
 
 /* --------------------------------- chat IA --------------------------------- */
 
-export async function enviarMensagemChat(mensagens, ambientes, inspecoes) {
+export async function enviarMensagemChat(mensagens, ambientes, inspecoes, users) {
   const payload = (inspecoes || []).map(i => ({
     data: i.data,
     hora: i.hora,
@@ -267,8 +267,10 @@ export async function enviarMensagemChat(mensagens, ambientes, inspecoes) {
     observacao: i.observacao,
     inspetorNome: i.inspetorNome,
   }));
+  // Só nome e perfil vão para a IA — nunca e-mail ou senha.
+  const usuariosPayload = (users || []).map(u => ({ nome: u.nome, perfil: u.perfil }));
   const { data, error } = await supabase.functions.invoke("chat-ia", {
-    body: { mensagens, ambientes, inspecoes: payload },
+    body: { mensagens, ambientes, inspecoes: payload, usuarios: usuariosPayload },
   });
   if (error) {
     let detalhe = error.message || String(error);
