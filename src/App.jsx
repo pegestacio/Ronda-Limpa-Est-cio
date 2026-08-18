@@ -5,7 +5,8 @@ import {
   XCircle, Search, Plus, Trash2, Pencil, User, Users, ChevronRight, X,
   MapPin, Clock, Calendar, Filter, Printer, Sheet, ClipboardCheck, ScanLine,
   ArrowLeft, Loader2, Inbox, UserPlus, KeyRound, ShieldCheck, Copy, Check, Sparkles, Sun, Moon,
-  MessageCircle, Send
+  MessageCircle, Send, AlertCircle, Settings, Menu, ChevronDown, Gauge, Activity, CircleUserRound,
+  Eye
 } from "lucide-react";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
@@ -81,8 +82,31 @@ function resizeImage(file, maxWidth = 900) {
   });
 }
 
+function saudacao() {
+  const h = new Date().getHours();
+  if (h < 12) return "Bom dia";
+  if (h < 18) return "Boa tarde";
+  return "Boa noite";
+}
+
+function tempoRelativo(isoStr) {
+  const diffMs = Date.now() - new Date(isoStr).getTime();
+  const min = Math.floor(diffMs / 60000);
+  if (min < 1) return "agora mesmo";
+  if (min < 60) return `há ${min} minuto${min === 1 ? "" : "s"}`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `há ${h} hora${h === 1 ? "" : "s"}`;
+  const d = Math.floor(h / 24);
+  return `há ${d} dia${d === 1 ? "" : "s"}`;
+}
+
 const SESSION_KEY = "rondalimpa_session";
 const THEME_KEY = "rondalimpa_theme";
+
+// Nome da unidade exibido no topo do sistema. Como o ZELO atende só uma
+// unidade por enquanto, isso é só uma constante de exibição — não existe
+// estrutura de múltiplas unidades no banco nem na interface.
+const NOME_UNIDADE = "Estácio";
 
 function useTheme() {
   const [theme, setTheme] = useState(() => {
@@ -201,77 +225,209 @@ export default function App() {
 
   const isAdmin = currentUser.perfil === "administrador";
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col font-sans">
-      {/* topo */}
-      <header className="no-print bg-blue-800 text-white sticky top-0 z-20 shadow-md">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="bg-white/15 rounded-lg p-1.5"><ClipboardCheck size={20} /></div>
-            <div>
-              <div className="font-display font-bold text-[15px] leading-tight tracking-tight">RondaLimpa</div>
-              <div className="text-[11px] text-blue-200 leading-tight">Controle de Limpeza de Ambientes</div>
+  if (!isAdmin) {
+    // Fluxo do inspetor: mantém a navegação simples em abas no topo, pensada
+    // pra uso no celular em campo — a sidebar corporativa é só pro admin.
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col font-sans">
+        <header className="no-print bg-blue-800 text-white sticky top-0 z-20 shadow-md">
+          <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="bg-white/15 rounded-lg p-1.5"><ShieldCheck size={20} /></div>
+              <div>
+                <div className="font-display font-bold text-[15px] leading-tight tracking-tight">ZELO</div>
+                <div className="text-[11px] text-blue-200 leading-tight">{NOME_UNIDADE}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <ThemeToggle theme={theme} onToggle={toggleTheme} className="bg-blue-700 hover:bg-blue-600 text-white" />
+              <div className="hidden sm:flex flex-col items-end leading-tight">
+                <span className="text-sm font-medium">{currentUser.nome}</span>
+                <span className="text-[11px] text-blue-200 capitalize">{currentUser.perfil}</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-600 transition-colors rounded-lg px-3 py-1.5 text-sm font-medium"
+              >
+                <LogOut size={15} /> Sair
+              </button>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle theme={theme} onToggle={toggleTheme} className="bg-blue-700 hover:bg-blue-600 text-white" />
-            <div className="hidden sm:flex flex-col items-end leading-tight">
-              <span className="text-sm font-medium">{currentUser.nome}</span>
-              <span className="text-[11px] text-blue-200 capitalize">{currentUser.perfil}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-1.5 bg-blue-700 hover:bg-blue-600 transition-colors rounded-lg px-3 py-1.5 text-sm font-medium"
-            >
-              <LogOut size={15} /> Sair
-            </button>
+          <nav className="max-w-6xl mx-auto px-2 flex gap-1 overflow-x-auto">
+            <NavBtn active={tab === "ronda"} onClick={() => setTab("ronda")} icon={ScanLine} label="Ronda" />
+            <NavBtn active={tab === "minhas"} onClick={() => setTab("minhas")} icon={ClipboardList} label="Minhas Inspeções" />
+          </nav>
+        </header>
+
+        <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-5">
+          {tab === "ronda" && (
+            <Ronda
+              ambientes={ambientes}
+              currentUser={currentUser}
+              onSaved={reload}
+              directAmbiente={urlAmbienteId ? ambientes.find(a => a.id === urlAmbienteId) : null}
+              onClearDirect={clearUrlAmbiente}
+              adminEmails={users.filter(u => u.perfil === "administrador").map(u => u.email)}
+            />
+          )}
+          {tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters onChange={reload} />}
+        </main>
+
+        <footer className="no-print text-center text-[11px] text-gray-400 dark:text-gray-500 py-3">ZELO · Estácio</footer>
+      </div>
+    );
+  }
+
+  // Fluxo do administrador: portal corporativo com sidebar fixa.
+  return (
+    <AdminShell
+      currentUser={currentUser}
+      onLogout={handleLogout}
+      theme={theme}
+      toggleTheme={toggleTheme}
+      tab={tab}
+      setTab={setTab}
+      ocorrenciasAbertas={notificacoes.filter(n => !n.lida).length}
+    >
+      {tab === "dashboard" && <Dashboard ambientes={ambientes} inspecoes={inspecoes} currentUser={currentUser} />}
+      {tab === "ambientes" && <AmbientesManager ambientes={ambientes} inspecoes={inspecoes} onChange={reload} />}
+      {tab === "inspecoes" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes} users={users} onChange={reload} />}
+      {tab === "ocorrencias" && <Ocorrencias notificacoes={notificacoes} onChange={reload} />}
+      {tab === "relatorios" && <Relatorios ambientes={ambientes} inspecoes={inspecoes} />}
+      {tab === "usuarios" && <UsuariosManager users={users} currentUser={currentUser} onChange={reload} />}
+      {tab === "configuracoes" && <Configuracoes theme={theme} toggleTheme={toggleTheme} />}
+
+      <ChatIA ambientes={ambientes} inspecoes={inspecoes} users={users} />
+    </AdminShell>
+  );
+}
+
+/* ------------------------------ layout admin (sidebar + topbar) --------------------------- */
+
+const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "ambientes", label: "Ambientes", icon: Building2 },
+  { key: "inspecoes", label: "Inspeções", icon: ClipboardList },
+  { key: "ocorrencias", label: "Ocorrências", icon: AlertCircle },
+  { key: "relatorios", label: "Relatórios", icon: FileDown },
+];
+
+function AdminShell({ currentUser, onLogout, theme, toggleTheme, tab, setTab, ocorrenciasAbertas, children }) {
+  const [sidebarAberta, setSidebarAberta] = useState(false);
+  const [menuUsuario, setMenuUsuario] = useState(false);
+  const iniciais = currentUser.nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase();
+
+  const irPara = (key) => { setTab(key); setSidebarAberta(false); };
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 font-sans flex">
+      {/* sidebar */}
+      <aside className={`no-print fixed lg:static inset-y-0 left-0 z-40 w-64 shrink-0 bg-slate-900 text-slate-200 flex flex-col transition-transform duration-200 ${sidebarAberta ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        <div className="flex items-center gap-2.5 px-5 py-5">
+          <div className="bg-cyan-500/15 text-cyan-400 rounded-lg p-2"><ShieldCheck size={20} /></div>
+          <div>
+            <div className="font-display font-bold text-white text-[15px] leading-tight tracking-tight">ZELO</div>
+            <div className="text-[11px] text-slate-400 leading-tight">Estácio</div>
           </div>
         </div>
-        <nav className="max-w-6xl mx-auto px-2 flex gap-1 overflow-x-auto">
-          {isAdmin ? (
-            <>
-              <NavBtn active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard} label="Dashboard" />
-              <NavBtn active={tab === "ambientes"} onClick={() => setTab("ambientes")} icon={Building2} label="Ambientes" />
-              <NavBtn active={tab === "inspecoes"} onClick={() => setTab("inspecoes")} icon={ClipboardList} label="Inspeções" />
-              <NavBtn active={tab === "relatorios"} onClick={() => setTab("relatorios")} icon={FileDown} label="Relatórios" />
-              <NavBtn active={tab === "notificacoes"} onClick={() => setTab("notificacoes")} icon={Bell} label="Notificações"
-                badge={notificacoes.filter(n => !n.lida).length} />
-              <NavBtn active={tab === "usuarios"} onClick={() => setTab("usuarios")} icon={Users} label="Usuários" />
-            </>
-          ) : (
-            <>
-              <NavBtn active={tab === "ronda"} onClick={() => setTab("ronda")} icon={ScanLine} label="Ronda" />
-              <NavBtn active={tab === "minhas"} onClick={() => setTab("minhas")} icon={ClipboardList} label="Minhas Inspeções" />
-            </>
-          )}
+
+        <nav className="flex-1 px-3 space-y-0.5 mt-2">
+          {NAV_ITEMS.map(item => {
+            const active = tab === item.key;
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.key}
+                onClick={() => irPara(item.key)}
+                className={`relative w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  active ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                }`}
+              >
+                {active && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-full bg-cyan-400" />}
+                <Icon size={17} />
+                {item.label}
+                {item.key === "ocorrencias" && ocorrenciasAbertas > 0 && (
+                  <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full h-[18px] min-w-[18px] px-1 flex items-center justify-center">{ocorrenciasAbertas}</span>
+                )}
+              </button>
+            );
+          })}
         </nav>
-      </header>
 
-      <main className="flex-1 max-w-6xl w-full mx-auto px-4 py-5">
-        {isAdmin && tab === "dashboard" && <Dashboard ambientes={ambientes} inspecoes={inspecoes} />}
-        {isAdmin && tab === "ambientes" && <AmbientesManager ambientes={ambientes} inspecoes={inspecoes} onChange={reload} />}
-        {isAdmin && tab === "inspecoes" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes} users={users} onChange={reload} />}
-        {isAdmin && tab === "relatorios" && <Relatorios ambientes={ambientes} inspecoes={inspecoes} />}
-        {isAdmin && tab === "notificacoes" && <Notificacoes notificacoes={notificacoes} onChange={reload} />}
-        {isAdmin && tab === "usuarios" && <UsuariosManager users={users} currentUser={currentUser} onChange={reload} />}
-        {!isAdmin && tab === "ronda" && (
-          <Ronda
-            ambientes={ambientes}
-            currentUser={currentUser}
-            onSaved={reload}
-            directAmbiente={urlAmbienteId ? ambientes.find(a => a.id === urlAmbienteId) : null}
-            onClearDirect={clearUrlAmbiente}
-            adminEmails={users.filter(u => u.perfil === "administrador").map(u => u.email)}
-          />
-        )}
-        {!isAdmin && tab === "minhas" && <InspecoesHistorico ambientes={ambientes} inspecoes={inspecoes.filter(i => i.inspetorId === currentUser.id)} users={users} minimalFilters onChange={reload} />}
-      </main>
+        <div className="px-3 pb-4 pt-2 border-t border-slate-800 space-y-0.5">
+          <button
+            onClick={() => irPara("usuarios")}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${tab === "usuarios" ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"}`}
+          >
+            <Users size={17} /> Usuários
+          </button>
+          <button
+            onClick={() => irPara("configuracoes")}
+            className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${tab === "configuracoes" ? "bg-slate-800 text-white" : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"}`}
+          >
+            <Settings size={17} /> Configurações
+          </button>
+        </div>
+      </aside>
 
-      <footer className="no-print text-center text-[11px] text-gray-400 dark:text-gray-500 py-3">
-        Dados salvos no Supabase. QR Code é simulado (seleção do ambiente na Ronda); notificações são internas ao app.
-      </footer>
+      {sidebarAberta && <div className="lg:hidden fixed inset-0 bg-black/40 z-30" onClick={() => setSidebarAberta(false)} />}
 
-      {isAdmin && <ChatIA ambientes={ambientes} inspecoes={inspecoes} users={users} />}
+      {/* conteúdo */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        <header className="no-print sticky top-0 z-20 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between px-4 lg:px-6 py-3">
+            <div className="flex items-center gap-3">
+              <button className="lg:hidden text-gray-500 dark:text-gray-400" onClick={() => setSidebarAberta(true)}><Menu size={22} /></button>
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 rounded-full px-3 py-1">
+                Unidade: {NOME_UNIDADE}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <ThemeToggle theme={theme} onToggle={toggleTheme} className="text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" />
+              <button
+                onClick={() => irPara("ocorrencias")}
+                className="relative flex items-center justify-center rounded-lg p-1.5 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="Ocorrências"
+              >
+                <Bell size={17} />
+                {ocorrenciasAbertas > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[9px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{ocorrenciasAbertas}</span>
+                )}
+              </button>
+
+              <div className="relative">
+                <button onClick={() => setMenuUsuario(v => !v)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <span className="w-8 h-8 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center shrink-0">{iniciais}</span>
+                  <span className="hidden sm:flex flex-col items-start leading-tight">
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{currentUser.nome}</span>
+                    <span className="text-[11px] text-gray-400 dark:text-gray-500 capitalize">{currentUser.perfil}</span>
+                  </span>
+                  <ChevronDown size={14} className="text-gray-400 dark:text-gray-500" />
+                </button>
+                {menuUsuario && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setMenuUsuario(false)} />
+                    <div className="absolute right-0 mt-2 w-44 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-xl shadow-lg py-1.5 z-40">
+                      <button onClick={() => { irPara("configuracoes"); setMenuUsuario(false); }} className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <CircleUserRound size={15} /> Perfil
+                      </button>
+                      <button onClick={onLogout} className="w-full flex items-center gap-2 px-3.5 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <LogOut size={15} /> Sair
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 lg:px-6 py-6">
+          {children}
+        </main>
+
+        <footer className="no-print text-center text-[11px] text-gray-400 dark:text-gray-500 py-4">ZELO · {NOME_UNIDADE} · Gestão e qualidade dos ambientes</footer>
+      </div>
     </div>
   );
 }
@@ -315,18 +471,19 @@ function LoginScreen({ users, onLogin, onUsersChange, theme, toggleTheme }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-800 to-blue-600 flex items-center justify-center p-4 font-sans relative">
-      <ThemeToggle theme={theme} onToggle={toggleTheme} className="absolute top-4 right-4 bg-white/15 hover:bg-white/25 text-white" />
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex items-center justify-center p-4 font-sans relative">
+      <ThemeToggle theme={theme} onToggle={toggleTheme} className="absolute top-4 right-4 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" />
       <div className="w-full max-w-sm">
-        <div className="text-center mb-6 text-white">
-          <div className="logo3d-wrap inline-block mb-3">
-            <img src="/logo-estacio.png" alt="Estácio" className="logo3d-spin w-20 h-20 mx-auto" />
+        <div className="text-center mb-6">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-700 text-white mb-3">
+            <ShieldCheck size={26} />
           </div>
-          <h1 className="font-display font-extrabold text-2xl tracking-tight">RondaLimpa</h1>
-          <p className="text-blue-100 text-sm mt-1">Fiscalização de limpeza dos ambientes</p>
+          <h1 className="font-display font-extrabold text-2xl tracking-tight text-gray-900 dark:text-white">ZELO</h1>
+          <p className="text-xs font-semibold text-cyan-600 dark:text-cyan-400 tracking-wide uppercase mt-0.5">Estácio</p>
+          <p className="text-gray-500 dark:text-gray-400 text-sm mt-2">Gestão e qualidade dos ambientes</p>
         </div>
 
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-5">
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
           {precisaConfigurarPrimeiroAdmin ? (
             <ConfiguracaoInicial onUsersChange={onUsersChange} onLogin={onLogin} />
           ) : (
@@ -339,6 +496,7 @@ function LoginScreen({ users, onLogin, onUsersChange, theme, toggleTheme }) {
             </form>
           )}
         </div>
+        <p className="text-center text-[11px] text-gray-400 dark:text-gray-600 mt-5">Unidade: {NOME_UNIDADE}</p>
       </div>
     </div>
   );
@@ -368,7 +526,7 @@ function ConfiguracaoInicial({ onUsersChange, onLogin }) {
 
   return (
     <form onSubmit={criar} className="space-y-3">
-      <div className="flex items-center gap-2 bg-blue-50 text-blue-800 rounded-lg px-3 py-2 mb-1">
+      <div className="flex items-center gap-2 bg-blue-50 dark:bg-blue-950 text-blue-800 dark:text-blue-300 rounded-lg px-3 py-2 mb-1">
         <ShieldCheck size={16} className="shrink-0" />
         <p className="text-xs font-medium">Primeiro acesso: crie sua conta de administrador. Depois disso, só você cria os acessos dos inspetores.</p>
       </div>
@@ -392,9 +550,35 @@ function Field({ label, children }) {
 
 /* ----------------------------- dashboard --------------------------------- */
 
-function Dashboard({ ambientes, inspecoes }) {
+function Dashboard({ ambientes, inspecoes, currentUser }) {
+  const [periodo, setPeriodo] = useState("hoje");
+  const [customIni, setCustomIni] = useState("");
+  const [customFim, setCustomFim] = useState("");
+
+  const rangeInicio = useMemo(() => {
+    const hoje = new Date();
+    if (periodo === "hoje") return hoje;
+    if (periodo === "semana") { const d = new Date(hoje); d.setDate(d.getDate() - 6); return d; }
+    if (periodo === "mes") { const d = new Date(hoje); d.setDate(d.getDate() - 29); return d; }
+    return customIni ? new Date(customIni + "T00:00:00") : null;
+  }, [periodo, customIni]);
+
+  const rangeFim = useMemo(() => {
+    if (periodo === "personalizado") return customFim ? new Date(customFim + "T23:59:59") : null;
+    return new Date();
+  }, [periodo, customFim]);
+
+  const inspecoesPeriodo = useMemo(() => {
+    if (!rangeInicio || !rangeFim) return inspecoes;
+    return inspecoes.filter(i => {
+      const d = new Date(i.criadoEm);
+      return d >= rangeInicio && d <= rangeFim;
+    });
+  }, [inspecoes, rangeInicio, rangeFim]);
+
   const { dataKey } = nowParts();
   const inspHoje = inspecoes.filter(i => i.dataKey === dataKey);
+
   const ultimasPorAmbiente = useMemo(() => {
     const map = {};
     for (const i of inspecoes) {
@@ -406,17 +590,17 @@ function Dashboard({ ambientes, inspecoes }) {
   const limpos = Object.values(ultimasPorAmbiente).filter(i => i.status === "limpo").length;
   const parciais = Object.values(ultimasPorAmbiente).filter(i => i.status === "parcial").length;
   const naoLimpos = Object.values(ultimasPorAmbiente).filter(i => i.status === "nao_limpo").length;
-  const pendentes = ambientes.length - Object.keys(ultimasPorAmbiente).length;
+  const pendentes = Math.max(ambientes.length - Object.keys(ultimasPorAmbiente).length, 0);
   const conformidade = ambientes.length > 0 ? Math.round((limpos / ambientes.length) * 100) : 0;
 
   const pieData = [
-    { name: "Limpo", value: limpos, color: "#10b981" },
-    { name: "Parcial", value: parciais, color: "#f59e0b" },
-    { name: "Não Limpo", value: naoLimpos, color: "#ef4444" },
-    { name: "Pendente", value: Math.max(pendentes, 0), color: "#d1d5db" },
+    { name: "Limpos", value: limpos, color: "#10b981" },
+    { name: "Parciais", value: parciais, color: "#f59e0b" },
+    { name: "Não limpos", value: naoLimpos, color: "#ef4444" },
+    { name: "Pendentes", value: pendentes, color: "#94a3b8" },
   ].filter(d => d.value > 0);
 
-  const problemasPorAmbiente = useMemo(() => {
+  const ambientesComProblemas = useMemo(() => {
     const map = {};
     for (const i of inspecoes) {
       if (i.status === "nao_limpo" || i.status === "parcial") {
@@ -425,60 +609,71 @@ function Dashboard({ ambientes, inspecoes }) {
         map[nome] = (map[nome] || 0) + 1;
       }
     }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([nome, total]) => ({ nome, total }));
+    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 6);
   }, [inspecoes, ambientes]);
 
-  const historicoDiario = useMemo(() => {
-    const days = [];
-    for (let k = 6; k >= 0; k--) {
-      const d = new Date();
-      d.setDate(d.getDate() - k);
-      const key = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-      const label = `${pad(d.getDate())}/${pad(d.getMonth() + 1)}`;
-      const total = inspecoes.filter(i => i.dataKey === key).length;
-      days.push({ dia: label, inspecoes: total });
-    }
-    return days;
+  const ocorrenciasTotal = inspecoes.filter(i => i.status === "nao_limpo" || i.status === "parcial").length;
+  const ambientesAvaliados = Object.keys(ultimasPorAmbiente).length;
+
+  const atividades = useMemo(() => {
+    return [...inspecoes]
+      .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
+      .slice(0, 8);
   }, [inspecoes]);
 
-  const rankingAmbientes = useMemo(() => {
-    const map = {};
-    for (const i of inspecoes) {
-      if (i.status !== "limpo") {
-        const amb = ambientes.find(a => a.id === i.ambienteId);
-        const nome = amb ? amb.nome : "—";
-        map[nome] = (map[nome] || 0) + 1;
-      }
-    }
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [inspecoes, ambientes]);
-
-  const rankingInspetores = useMemo(() => {
-    const map = {};
-    for (const i of inspecoes) map[i.inspetorNome] = (map[i.inspetorNome] || 0) + 1;
-    return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  }, [inspecoes]);
+  const primeiroNome = (currentUser?.nome || "").trim().split(" ")[0];
 
   return (
     <div className="space-y-5">
-      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Dashboard</h2>
-
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <StatCard label="Total de ambientes" value={ambientes.length} color="blue" />
-        <StatCard label="Inspeções hoje" value={inspHoje.length} color="blue" />
-        <StatCard label="Limpos" value={limpos} color="emerald" />
-        <StatCard label="Parciais" value={parciais} color="amber" />
-        <StatCard label="Não limpos" value={naoLimpos} color="red" />
-        <StatCard label="Pendentes" value={Math.max(pendentes, 0)} color="gray" />
-        <StatCard label="Conformidade" value={`${conformidade}%`} color="blue" span />
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">{saudacao()}, {primeiroNome}.</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Acompanhe a qualidade dos ambientes da sua unidade.</p>
+        </div>
+        <div className="flex items-center gap-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1">
+          {[
+            { key: "hoje", label: "Hoje" },
+            { key: "semana", label: "Esta semana" },
+            { key: "mes", label: "Este mês" },
+            { key: "personalizado", label: "Personalizado" },
+          ].map(op => (
+            <button
+              key={op.key}
+              onClick={() => setPeriodo(op.key)}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${periodo === op.key ? "bg-blue-700 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+            >
+              {op.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      {periodo === "personalizado" && (
+        <div className="flex items-center gap-2">
+          <input type="date" className="input !w-auto !text-xs" value={customIni} onChange={e => setCustomIni(e.target.value)} />
+          <span className="text-xs text-gray-400 dark:text-gray-500">até</span>
+          <input type="date" className="input !w-auto !text-xs" value={customFim} onChange={e => setCustomFim(e.target.value)} />
+        </div>
+      )}
+
+      {/* indicadores */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+        <StatCard label="Total de ambientes" value={ambientes.length} color="blue" icon={Building2} />
+        <StatCard label="Inspeções hoje" value={inspHoje.length} color="blue" icon={ClipboardList} />
+        <StatCard label="Limpos" value={limpos} color="emerald" icon={CheckCircle2} />
+        <StatCard label="Parciais" value={parciais} color="amber" icon={AlertTriangle} />
+        <StatCard label="Não limpos" value={naoLimpos} color="red" icon={XCircle} />
+        <StatCard label="Pendentes" value={pendentes} color="gray" icon={Clock} />
+        <StatCard label="Conformidade" value={`${conformidade}%`} color="cyan" icon={Gauge} />
+      </div>
+
+      {/* gráfico + ranking de problemas */}
+      <div className="grid lg:grid-cols-2 gap-4">
         <Card title="Status das inspeções">
           {pieData.length === 0 ? <EmptyMini text="Sem inspeções ainda" /> : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
-                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={2}>
                   {pieData.map((d, idx) => <Cell key={idx} fill={d.color} />)}
                 </Pie>
                 <Tooltip /><Legend />
@@ -487,76 +682,93 @@ function Dashboard({ ambientes, inspecoes }) {
           )}
         </Card>
 
-        <Card title="Problemas por ambiente">
-          {problemasPorAmbiente.length === 0 ? <EmptyMini text="Nenhum problema registrado" /> : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={problemasPorAmbiente}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="nome" tick={{ fontSize: 11 }} interval={0} angle={-20} textAnchor="end" height={50} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-                <Tooltip />
-                <Bar dataKey="total" fill="#ef4444" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+        <Card title="Ambientes com problemas">
+          {ambientesComProblemas.length === 0 ? <EmptyMini text="Nenhum problema registrado" /> : (
+            <ul className="divide-y divide-gray-100 dark:divide-gray-700">
+              {ambientesComProblemas.map(([nome, total], idx) => (
+                <li key={nome} className="flex items-center justify-between py-2.5">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-6 h-6 rounded-md bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 text-xs font-semibold flex items-center justify-center shrink-0">{idx + 1}</span>
+                    <span className="text-sm text-gray-700 dark:text-gray-200 truncate">{nome}</span>
+                  </div>
+                  <span className="text-sm font-semibold text-red-600 dark:text-red-400 shrink-0">{total} ocorrência{total === 1 ? "" : "s"}</span>
+                </li>
+              ))}
+            </ul>
           )}
         </Card>
-
-        <Card title="Histórico diário (últimos 7 dias)">
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={historicoDiario}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="dia" tick={{ fontSize: 11 }} />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Line type="monotone" dataKey="inspecoes" stroke="#1d4ed8" strokeWidth={2.5} dot={{ r: 3 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </Card>
-
-        <Card title="Rankings">
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Mais ocorrências</p>
-              {rankingAmbientes.length === 0 ? <EmptyMini text="—" /> : (
-                <ul className="space-y-1.5">
-                  {rankingAmbientes.map(([nome, total], idx) => (
-                    <li key={nome} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 dark:text-gray-200 truncate pr-2">{idx + 1}. {nome}</span>
-                      <span className="font-semibold text-red-600">{total}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">Ranking inspetores</p>
-              {rankingInspetores.length === 0 ? <EmptyMini text="—" /> : (
-                <ul className="space-y-1.5">
-                  {rankingInspetores.map(([nome, total], idx) => (
-                    <li key={nome} className="flex items-center justify-between text-sm">
-                      <span className="text-gray-700 dark:text-gray-200 truncate pr-2">{idx + 1}. {nome}</span>
-                      <span className="font-semibold text-blue-700">{total}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          </div>
-        </Card>
       </div>
+
+      {/* desempenho da unidade */}
+      <Card title="Desempenho da unidade" right={<Activity size={15} className="text-gray-400 dark:text-gray-500" />}>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <DesempenhoItem label="Conformidade" value={conformidade} sufixo="%" barColor="bg-emerald-500" />
+          <DesempenhoItem label="Inspeções realizadas" value={inspecoesPeriodo.length} barColor="bg-blue-600" max={Math.max(inspecoesPeriodo.length, 1)} semBarra />
+          <DesempenhoItem label="Ambientes avaliados" value={ambientesAvaliados} max={Math.max(ambientes.length, 1)} barColor="bg-cyan-500" />
+          <DesempenhoItem label="Ocorrências" value={ocorrenciasTotal} barColor="bg-red-500" max={Math.max(ocorrenciasTotal, 1)} semBarra />
+        </div>
+      </Card>
+
+      {/* atividades recentes */}
+      <Card title="Atividades recentes">
+        {atividades.length === 0 ? <EmptyMini text="Nenhuma atividade ainda" /> : (
+          <ul className="space-y-3">
+            {atividades.map(i => {
+              const info = {
+                limpo: { icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400", label: "Inspeção concluída" },
+                parcial: { icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400", label: "Pendência registrada" },
+                nao_limpo: { icon: AlertCircle, color: "text-red-600 dark:text-red-400", label: "Ocorrência registrada" },
+              }[i.status];
+              const Icon = info.icon;
+              return (
+                <li key={i.id} className="flex items-center gap-3">
+                  <Icon size={16} className={`${info.color} shrink-0`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm text-gray-700 dark:text-gray-200 truncate">{info.label} <span className="text-gray-400 dark:text-gray-500">·</span> <span className="font-medium">{i.ambienteNome}</span></p>
+                  </div>
+                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">{tempoRelativo(i.criadoEm)}</span>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </Card>
     </div>
   );
 }
 
-function StatCard({ label, value, color, span }) {
+function DesempenhoItem({ label, value, sufixo = "", max = 100, barColor, semBarra }) {
+  const pct = semBarra ? null : Math.min(100, Math.round((value / max) * 100));
+  return (
+    <div>
+      <p className="text-2xl font-display font-extrabold text-gray-900 dark:text-white">{value}{sufixo}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 mb-2">{label}</p>
+      {!semBarra && (
+        <div className="h-1.5 rounded-full bg-gray-100 dark:bg-gray-700 overflow-hidden">
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${pct}%` }} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ label, value, color, span, icon: Icon }) {
   const colors = {
-    blue: "text-blue-800 dark:text-blue-300", emerald: "text-emerald-700 dark:text-emerald-400",
-    amber: "text-amber-700 dark:text-amber-400", red: "text-red-700 dark:text-red-400", gray: "text-gray-600 dark:text-gray-300",
+    blue: { text: "text-blue-700 dark:text-blue-300", bg: "bg-blue-50 dark:bg-blue-950" },
+    emerald: { text: "text-emerald-700 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950" },
+    amber: { text: "text-amber-700 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950" },
+    red: { text: "text-red-700 dark:text-red-400", bg: "bg-red-50 dark:bg-red-950" },
+    gray: { text: "text-gray-600 dark:text-gray-300", bg: "bg-gray-100 dark:bg-gray-700" },
+    cyan: { text: "text-cyan-700 dark:text-cyan-400", bg: "bg-cyan-50 dark:bg-cyan-950" },
   };
+  const c = colors[color] || colors.gray;
   return (
     <div className={`rounded-xl p-3.5 bg-white dark:bg-gray-800 shadow-sm border border-gray-100 dark:border-gray-700 ${span ? "col-span-2 md:col-span-1" : ""}`}>
-      <div className={`text-2xl font-display font-extrabold ${colors[color]}`}>{value}</div>
-      <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{label}</div>
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xs text-gray-500 dark:text-gray-400">{label}</span>
+        {Icon && <span className={`w-6 h-6 rounded-md flex items-center justify-center shrink-0 ${c.bg} ${c.text}`}><Icon size={13} /></span>}
+      </div>
+      <div className="text-xl font-display font-extrabold text-gray-900 dark:text-white">{value}</div>
     </div>
   );
 }
@@ -585,6 +797,8 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
   const [busy, setBusy] = useState(false);
   const [selectedQr, setSelectedQr] = useState(null);
   const [search, setSearch] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroTipo, setFiltroTipo] = useState("");
   const [gerandoPdf, setGerandoPdf] = useState(false);
   const [erroPdf, setErroPdf] = useState("");
 
@@ -599,9 +813,23 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
     setGerandoPdf(false);
   };
 
-  const filtered = ambientes.filter(a =>
-    a.nome.toLowerCase().includes(search.toLowerCase()) || a.codigo.toLowerCase().includes(search.toLowerCase())
-  );
+  const linhas = useMemo(() => {
+    return ambientes.map(a => {
+      const doAmbiente = inspecoes.filter(i => i.ambienteId === a.id);
+      const ultima = doAmbiente.length > 0
+        ? doAmbiente.reduce((mais, i) => new Date(i.criadoEm) > new Date(mais.criadoEm) ? i : mais)
+        : null;
+      const ocorrencias = doAmbiente.filter(i => i.status === "nao_limpo" || i.status === "parcial").length;
+      return { ambiente: a, ultima, ocorrencias };
+    });
+  }, [ambientes, inspecoes]);
+
+  const filtered = linhas.filter(({ ambiente: a, ultima }) => {
+    const buscaOk = a.nome.toLowerCase().includes(search.toLowerCase()) || a.codigo.toLowerCase().includes(search.toLowerCase());
+    const statusOk = !filtroStatus || (ultima ? ultima.status === filtroStatus : filtroStatus === "pendente");
+    const tipoOk = !filtroTipo || a.tipo === filtroTipo;
+    return buscaOk && statusOk && tipoOk;
+  });
 
   const salvar = async (dados) => {
     setBusy(true);
@@ -630,48 +858,86 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Ambientes</h2>
+        <div>
+          <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Ambientes</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{ambientes.length} ambiente(s) cadastrado(s)</p>
+        </div>
         <div className="flex gap-2">
           <button onClick={imprimirTodos} disabled={gerandoPdf || ambientes.length === 0} className="btn-secondary !w-auto px-4 disabled:opacity-40">
-            {gerandoPdf ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />} {gerandoPdf ? "Gerando PDF..." : "Imprimir todos os QR Codes"}
+            {gerandoPdf ? <Loader2 className="animate-spin" size={16} /> : <FileDown size={16} />} {gerandoPdf ? "Gerando PDF..." : "QR Codes (PDF)"}
           </button>
           <button onClick={() => { setEditing(null); setShowForm(true); }} className="btn-primary !w-auto px-4"><Plus size={16} /> Novo ambiente</button>
         </div>
       </div>
       {erroPdf && <p className="text-red-600 text-xs font-medium">{erroPdf}</p>}
 
-      <div className="relative max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou código..." className="input !pl-9" />
+      <div className="flex flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[220px]">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" />
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nome ou código..." className="input !pl-9" />
+        </div>
+        <select className="input !w-auto" value={filtroStatus} onChange={e => setFiltroStatus(e.target.value)}>
+          <option value="">Status: todos</option>
+          {Object.entries(STATUS).map(([k, s]) => <option key={k} value={k}>{s.label}</option>)}
+          <option value="pendente">Pendente</option>
+        </select>
+        <select className="input !w-auto" value={filtroTipo} onChange={e => setFiltroTipo(e.target.value)}>
+          <option value="">Tipo: todos</option>
+          {TIPOS_AMBIENTE.map(t => <option key={t} value={t}>{t}</option>)}
+        </select>
       </div>
 
       {filtered.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
           <Building2 className="mx-auto mb-2" size={26} />
-          Nenhum ambiente cadastrado ainda.
+          Nenhum ambiente encontrado.
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {filtered.map(a => {
-            const total = inspecoes.filter(i => i.ambienteId === a.id).length;
-            return (
-              <div key={a.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <h3 className="font-semibold text-gray-800 dark:text-gray-100">{a.nome}</h3>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">{a.tipo} · Bloco {a.bloco} · {a.andar}º andar</p>
-                  </div>
-                  <span className="text-[10px] font-mono bg-blue-50 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded">{a.codigo}</span>
-                </div>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">{total} inspeção(ões) registrada(s)</p>
-                <div className="flex gap-2 mt-3">
-                  <button onClick={() => setSelectedQr(a)} className="flex-1 flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 hover:bg-gray-50 dark:hover:bg-gray-700"><QrCode size={13} /> Código</button>
-                  <button onClick={() => { setEditing(a); setShowForm(true); }} className="flex items-center justify-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil size={13} /></button>
-                  <button onClick={() => excluir(a)} className="flex items-center justify-center gap-1 text-xs font-medium border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-2.5 hover:bg-red-50 dark:hover:bg-red-950"><Trash2 size={13} /></button>
-                </div>
-              </div>
-            );
-          })}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium">Ambiente</th>
+                <th className="text-left px-4 py-2.5 font-medium">Tipo</th>
+                <th className="text-left px-4 py-2.5 font-medium">Última inspeção</th>
+                <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium">Responsável</th>
+                <th className="text-left px-4 py-2.5 font-medium">Ocorrências</th>
+                <th className="text-right px-4 py-2.5 font-medium">Ações</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(({ ambiente: a, ultima, ocorrencias }) => {
+                const st = ultima ? statusStyle(ultima.status) : statusStyle(null);
+                return (
+                  <tr key={a.id} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-gray-800 dark:text-gray-100">{a.nome}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500">{a.codigo} · Bloco {a.bloco} · {a.andar}º andar</p>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{a.tipo}</td>
+                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{ultima ? `${ultima.data} ${ultima.hora}` : "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${st.chip}`}>
+                        {ultima ? STATUS[ultima.status].label : "Pendente"}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{ultima ? ultima.inspetorNome : "—"}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={ocorrencias > 0 ? "text-red-600 dark:text-red-400 font-semibold" : "text-gray-400 dark:text-gray-500"}>{ocorrencias}</span>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button onClick={() => setSelectedQr(a)} title="QR Code" className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300"><QrCode size={15} /></button>
+                        <button onClick={() => { setEditing(a); setShowForm(true); }} title="Editar" className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 hover:text-gray-600 dark:hover:text-gray-300"><Pencil size={15} /></button>
+                        <button onClick={() => excluir(a)} title="Excluir" className="p-1.5 rounded-lg text-gray-400 dark:text-gray-500 hover:bg-red-50 dark:hover:bg-red-950 hover:text-red-600 dark:hover:text-red-400"><Trash2 size={15} /></button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 
@@ -706,7 +972,7 @@ function AmbienteQrView({ ambiente }) {
       <div className="mx-auto w-52 h-52 border border-gray-200 dark:border-gray-700 rounded-xl flex items-center justify-center bg-white dark:bg-gray-800 p-3">
         {qr ? <img src={qr} alt={`QR code de ${ambiente.nome}`} className="w-full h-full" /> : <Loader2 className="animate-spin text-blue-700" size={22} />}
       </div>
-      <p className="font-mono font-bold text-lg text-blue-800 mt-3">{ambiente.codigo}</p>
+      <p className="font-mono font-bold text-lg text-blue-800 dark:text-blue-300 mt-3">{ambiente.codigo}</p>
       <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{ambiente.nome}</p>
       <p className="text-xs text-gray-400 dark:text-gray-500 mt-3 leading-relaxed">
         Aponte a câmera do celular pra este QR (não precisa abrir o app antes) — ele leva direto
@@ -807,7 +1073,7 @@ function UsuariosManager({ users, currentUser, onChange }) {
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Usuários</h2>
+          <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Usuários</h1>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Crie um acesso para cada inspetor e envie e-mail/senha para eles.</p>
         </div>
         <button onClick={() => { setEditing(null); setErr(""); setShowForm(true); }} className="btn-primary !w-auto px-4"><UserPlus size={16} /> Novo usuário</button>
@@ -816,7 +1082,7 @@ function UsuariosManager({ users, currentUser, onChange }) {
       <div className="space-y-2">
         {users.map(u => (
           <div key={u.id} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-3.5 flex items-center gap-3">
-            <span className={`shrink-0 rounded-lg p-2 ${u.perfil === "administrador" ? "bg-blue-100 text-blue-700" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"}`}>
+            <span className={`shrink-0 rounded-lg p-2 ${u.perfil === "administrador" ? "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300" : "bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300"}`}>
               {u.perfil === "administrador" ? <ShieldCheck size={16} /> : <User size={16} />}
             </span>
             <div className="flex-1 min-w-0">
@@ -1105,12 +1371,13 @@ function FichaInspecao({ ambiente, currentUser, onBack, onSaved, adminEmails }) 
 
 function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onChange }) {
   const [filtros, setFiltros] = useState({ dataIni: "", dataFim: "", bloco: "", andar: "", tipo: "", inspetor: "", status: "", ambiente: "" });
-  const [expanded, setExpanded] = useState(null);
+  const [detalhe, setDetalhe] = useState(null);
   const [editando, setEditando] = useState(null);
 
   const excluirInspecao = async (i) => {
     if (!confirm(`Excluir esta inspeção de "${i.ambienteNome}" (${i.data} às ${i.hora})? Essa ação não pode ser desfeita.`)) return;
     await deleteInspecao(i.id);
+    setDetalhe(null);
     await onChange?.();
   };
 
@@ -1133,7 +1400,10 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">{minimalFilters ? "Minhas inspeções" : "Histórico de inspeções"}</h2>
+      <div>
+        <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">{minimalFilters ? "Minhas inspeções" : "Inspeções"}</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{filtered.length} registro(s)</p>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
         <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400 mb-3"><Filter size={14} /> Filtros</div>
@@ -1176,38 +1446,66 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
           <Inbox className="mx-auto mb-2" size={26} /> Nenhuma inspeção encontrada com os filtros atuais.
         </div>
       ) : (
-        <div className="space-y-2">
-          {filtered.map(i => {
-            const st = statusStyle(i.status);
-            const Icon = STATUS[i.status].icon;
-            const open = expanded === i.id;
-            return (
-              <div key={i.id} className={`bg-white dark:bg-gray-800 rounded-xl border ${st.border} shadow-sm overflow-hidden`}>
-                <button onClick={() => setExpanded(open ? null : i.id)} className="w-full flex items-center gap-3 p-3.5 text-left">
-                  <span className={`shrink-0 ${st.chip} rounded-lg p-2`}><Icon size={16} /></span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-sm text-gray-800 dark:text-gray-100 truncate">{i.ambienteNome}</p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">{i.data} às {i.hora} · {i.inspetorNome}</p>
-                  </div>
-                  <span className={`text-xs font-semibold ${st.text} shrink-0`}>{STATUS[i.status].label}</span>
-                </button>
-                {open && (
-                  <div className="px-3.5 pb-3.5 flex gap-3 border-t border-gray-100 dark:border-gray-700 pt-3">
-                    {i.foto && <img src={i.foto} alt="evidência" className="w-24 h-24 object-cover rounded-lg border border-gray-200 dark:border-gray-700 shrink-0" />}
-                    <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1 flex-1">
-                      {i.observacao && <p><span className="font-semibold text-gray-700 dark:text-gray-200">Observação:</span> {i.observacao}</p>}
-                      {i.geo && <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1"><MapPin size={12} /> {i.geo.lat}, {i.geo.lng}</p>}
-                      <div className="flex gap-2 pt-1">
-                        <button onClick={() => setEditando(i)} className="flex items-center gap-1 text-xs font-medium border border-gray-200 dark:border-gray-700 rounded-lg py-1.5 px-2.5 hover:bg-gray-50 dark:hover:bg-gray-700"><Pencil size={13} /> Editar</button>
-                        <button onClick={() => excluirInspecao(i)} className="flex items-center gap-1 text-xs font-medium border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg py-1.5 px-2.5 hover:bg-red-50 dark:hover:bg-red-950"><Trash2 size={13} /> Excluir</button>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium">Ambiente</th>
+                <th className="text-left px-4 py-2.5 font-medium">Responsável</th>
+                <th className="text-left px-4 py-2.5 font-medium">Data</th>
+                <th className="text-left px-4 py-2.5 font-medium">Horário</th>
+                <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                <th className="text-left px-4 py-2.5 font-medium">Observação</th>
+                <th className="text-center px-4 py-2.5 font-medium">Foto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map(i => {
+                const st = statusStyle(i.status);
+                return (
+                  <tr key={i.id} onClick={() => setDetalhe(i)} className="border-t border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                    <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">{i.ambienteNome}</td>
+                    <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{i.inspetorNome}</td>
+                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{i.data}</td>
+                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{i.hora}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${st.chip}`}>{STATUS[i.status].label}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400 max-w-[220px] truncate">{i.observacao || "—"}</td>
+                    <td className="px-4 py-2.5 text-center">
+                      {i.foto ? <img src={i.foto} alt="evidência" className="w-9 h-9 object-cover rounded-md mx-auto" /> : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
+      )}
+
+      {detalhe && (
+        <Modal onClose={() => setDetalhe(null)} title="Detalhes da inspeção">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-gray-100">{detalhe.ambienteNome}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{detalhe.data} às {detalhe.hora} · {detalhe.inspetorNome}</p>
+              </div>
+              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${statusStyle(detalhe.status).chip}`}>{STATUS[detalhe.status].label}</span>
+            </div>
+            {detalhe.foto && <img src={detalhe.foto} alt="evidência" className="w-full max-h-64 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />}
+            {detalhe.observacao && (
+              <p className="text-sm text-gray-600 dark:text-gray-300"><span className="font-semibold text-gray-700 dark:text-gray-200">Observação:</span> {detalhe.observacao}</p>
+            )}
+            {detalhe.geo && (
+              <p className="text-xs text-gray-400 dark:text-gray-500 flex items-center gap-1"><MapPin size={12} /> {detalhe.geo.lat}, {detalhe.geo.lng}</p>
+            )}
+            <div className="flex gap-2 pt-2">
+              <button onClick={() => { setEditando(detalhe); setDetalhe(null); }} className="btn-secondary flex-1"><Pencil size={14} /> Editar</button>
+              <button onClick={() => excluirInspecao(detalhe)} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg py-2 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950"><Trash2 size={14} /> Excluir</button>
+            </div>
+          </div>
+        </Modal>
       )}
 
       {editando && (
@@ -1222,6 +1520,7 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
     </div>
   );
 }
+
 
 function EditarInspecaoForm({ inspecao, onCancel, onSaved }) {
   const [status, setStatus] = useState(inspecao.status);
@@ -1351,7 +1650,7 @@ function Relatorios({ ambientes, inspecoes }) {
     const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url; a.download = "relatorio_limpeza.csv"; a.click();
+    a.href = url; a.download = "zelo_relatorio.csv"; a.click();
     URL.revokeObjectURL(url);
   };
 
@@ -1359,12 +1658,15 @@ function Relatorios({ ambientes, inspecoes }) {
     const ws = XLSX.utils.json_to_sheet(linhas);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Inspeções");
-    XLSX.writeFile(wb, "relatorio_limpeza.xlsx");
+    XLSX.writeFile(wb, "zelo_relatorio.xlsx");
   };
 
   return (
     <div className="space-y-4">
-      <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Relatórios</h2>
+      <div>
+        <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Relatórios</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Conformidade, inspeções e ocorrências da unidade.</p>
+      </div>
 
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 space-y-4">
         <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -1391,7 +1693,7 @@ function Relatorios({ ambientes, inspecoes }) {
           </button>
         </div>
         {resumoErr && <p className="text-red-600 text-xs font-medium">{resumoErr}</p>}
-        {resumo && <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line bg-blue-50 rounded-lg p-3">{resumo}</p>}
+        {resumo && <p className="text-sm text-gray-700 dark:text-gray-200 leading-relaxed whitespace-pre-line bg-blue-50 dark:bg-blue-950 rounded-lg p-3">{resumo}</p>}
         {!resumo && !resumoErr && !resumoBusy && (
           <p className="text-xs text-gray-400 dark:text-gray-500">Gera um resumo em português das inspeções filtradas acima — destaques, problemas recorrentes e uma recomendação.</p>
         )}
@@ -1469,7 +1771,7 @@ function ChatIA({ ambientes, inspecoes, users }) {
       <button
         onClick={() => setAberto(v => !v)}
         className="fixed bottom-5 right-5 z-40 bg-blue-700 hover:bg-blue-800 text-white rounded-full p-3.5 shadow-lg transition-colors"
-        title="Assistente RondaLimpa"
+        title="Assistente ZELO"
       >
         {aberto ? <X size={22} /> : <MessageCircle size={22} />}
       </button>
@@ -1479,7 +1781,7 @@ function ChatIA({ ambientes, inspecoes, users }) {
           <div className="bg-blue-800 text-white px-4 py-3 flex items-center gap-2">
             <Sparkles size={16} />
             <div>
-              <p className="text-sm font-semibold leading-tight">Assistente RondaLimpa</p>
+              <p className="text-sm font-semibold leading-tight">Assistente ZELO</p>
               <p className="text-[11px] text-blue-200 leading-tight">Pergunte sobre ambientes e inspeções</p>
             </div>
           </div>
@@ -1523,62 +1825,139 @@ function ChatIA({ ambientes, inspecoes, users }) {
   );
 }
 
-function Notificacoes({ notificacoes, onChange }) {
-  const marcarLida = async (n) => {
+function Ocorrencias({ notificacoes, onChange }) {
+  const [detalhe, setDetalhe] = useState(null);
+
+  const resolver = async (n) => {
     await markNotificacaoLida(n.id);
+    setDetalhe(null);
     await onChange();
   };
 
   const excluir = async (n) => {
-    if (!confirm(`Excluir esta notificação de "${n.ambienteNome}"?`)) return;
+    if (!confirm(`Excluir esta ocorrência de "${n.ambienteNome}"?`)) return;
     await deleteNotificacao(n.id);
+    setDetalhe(null);
     await onChange();
   };
 
-  const limparLidas = async () => {
-    const lidas = notificacoes.filter(n => n.lida);
-    if (lidas.length === 0) return;
-    if (!confirm(`Excluir todas as ${lidas.length} notificações já lidas?`)) return;
-    await Promise.all(lidas.map(n => deleteNotificacao(n.id)));
+  const limparResolvidas = async () => {
+    const resolvidas = notificacoes.filter(n => n.lida);
+    if (resolvidas.length === 0) return;
+    if (!confirm(`Excluir todas as ${resolvidas.length} ocorrências já resolvidas?`)) return;
+    await Promise.all(resolvidas.map(n => deleteNotificacao(n.id)));
     await onChange();
   };
+
+  const abertas = notificacoes.filter(n => !n.lida).length;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
-          <h2 className="font-display font-bold text-xl text-gray-800 dark:text-gray-100">Notificações</h2>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Geradas automaticamente sempre que um ambiente é marcado como "Não Limpo".</p>
+          <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Ocorrências</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{abertas} aberta(s) de {notificacoes.length} no total</p>
         </div>
         {notificacoes.some(n => n.lida) && (
-          <button onClick={limparLidas} className="btn-secondary !w-auto px-3.5 text-xs"><Trash2 size={13} /> Limpar lidas</button>
+          <button onClick={limparResolvidas} className="btn-secondary !w-auto px-3.5 text-xs"><Trash2 size={13} /> Limpar resolvidas</button>
         )}
       </div>
 
       {notificacoes.length === 0 ? (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
-          <Bell className="mx-auto mb-2" size={26} /> Nenhuma notificação até o momento.
+          <AlertCircle className="mx-auto mb-2" size={26} /> Nenhuma ocorrência registrada até o momento.
         </div>
       ) : (
-        <div className="space-y-2">
-          {notificacoes.map(n => (
-            <div key={n.id} className={`bg-white dark:bg-gray-800 rounded-xl border shadow-sm p-3.5 flex gap-3 ${n.lida ? "border-gray-100 dark:border-gray-700 opacity-70" : "border-red-200 dark:border-red-800"}`}>
-              {n.foto && <img src={n.foto} className="w-16 h-16 object-cover rounded-lg shrink-0" alt="evidência" />}
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm text-gray-800 dark:text-gray-100">{n.ambienteNome} marcado como Não Limpo</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500">{n.data} às {n.hora} · {n.inspetorNome}</p>
-                {n.observacao && <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">{n.observacao}</p>}
-              </div>
-              <div className="shrink-0 flex flex-col items-end gap-1.5">
-                {!n.lida && (
-                  <button onClick={() => marcarLida(n)} className="text-xs font-medium text-blue-700 hover:underline">Marcar como lida</button>
-                )}
-                <button onClick={() => excluir(n)} className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline"><Trash2 size={12} /> Excluir</button>
-              </div>
-            </div>
-          ))}
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-950 text-gray-500 dark:text-gray-400 text-xs uppercase">
+              <tr>
+                <th className="text-left px-4 py-2.5 font-medium">Ambiente</th>
+                <th className="text-left px-4 py-2.5 font-medium">Tipo de ocorrência</th>
+                <th className="text-left px-4 py-2.5 font-medium">Data</th>
+                <th className="text-left px-4 py-2.5 font-medium">Responsável</th>
+                <th className="text-left px-4 py-2.5 font-medium">Status</th>
+                <th className="text-center px-4 py-2.5 font-medium">Foto</th>
+              </tr>
+            </thead>
+            <tbody>
+              {notificacoes.map(n => (
+                <tr key={n.id} onClick={() => setDetalhe(n)} className="border-t border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                  <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">{n.ambienteNome}</td>
+                  <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">Não conformidade de limpeza</td>
+                  <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{n.data} {n.hora}</td>
+                  <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{n.inspetorNome}</td>
+                  <td className="px-4 py-2.5">
+                    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${n.lida ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200" : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"}`}>
+                      {n.lida ? "Resolvida" : "Aberta"}
+                    </span>
+                  </td>
+                  <td className="px-4 py-2.5 text-center">
+                    {n.foto ? <img src={n.foto} alt="evidência" className="w-9 h-9 object-cover rounded-md mx-auto" /> : <span className="text-gray-300 dark:text-gray-600">—</span>}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
+
+      {detalhe && (
+        <Modal onClose={() => setDetalhe(null)} title="Detalhes da ocorrência">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-gray-800 dark:text-gray-100">{detalhe.ambienteNome}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500">{detalhe.data} às {detalhe.hora} · {detalhe.inspetorNome}</p>
+              </div>
+              <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${detalhe.lida ? "bg-emerald-100 dark:bg-emerald-900 text-emerald-800 dark:text-emerald-200" : "bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200"}`}>
+                {detalhe.lida ? "Resolvida" : "Aberta"}
+              </span>
+            </div>
+            {detalhe.foto && <img src={detalhe.foto} alt="evidência" className="w-full max-h-64 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />}
+            {detalhe.observacao && (
+              <p className="text-sm text-gray-600 dark:text-gray-300"><span className="font-semibold text-gray-700 dark:text-gray-200">Observação:</span> {detalhe.observacao}</p>
+            )}
+            <div className="flex gap-2 pt-2">
+              {!detalhe.lida && (
+                <button onClick={() => resolver(detalhe)} className="btn-primary flex-1"><CheckCircle2 size={14} /> Marcar como resolvida</button>
+              )}
+              <button onClick={() => excluir(detalhe)} className="flex-1 flex items-center justify-center gap-1.5 border border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 rounded-lg py-2 text-sm font-medium hover:bg-red-50 dark:hover:bg-red-950"><Trash2 size={14} /> Excluir</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+/* -------------------------------- configurações / perfil ---------------------------- */
+
+function Configuracoes({ theme, toggleTheme }) {
+  return (
+    <div className="space-y-4 max-w-lg">
+      <div>
+        <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Configurações</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Preferências do sistema ZELO.</p>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Tema da interface</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Alterne entre os modos claro e escuro.</p>
+        </div>
+        <button
+          onClick={toggleTheme}
+          className="flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700"
+        >
+          {theme === "dark" ? <><Sun size={15} /> Claro</> : <><Moon size={15} /> Escuro</>}
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-4">
+        <p className="text-sm font-medium text-gray-800 dark:text-gray-100">Sobre</p>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">ZELO — Gestão e qualidade dos ambientes. Unidade: {NOME_UNIDADE}.</p>
+      </div>
     </div>
   );
 }
