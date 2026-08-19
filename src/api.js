@@ -122,8 +122,21 @@ export async function uploadFotoInspecao(dataUrl, ambienteId) {
   return await uploadFoto(dataUrl, ambienteId);
 }
 
+// reg.foto pode ser uma única dataURL (compatibilidade) ou um array de
+// dataURLs (várias fotos). Nesse segundo caso, cada foto é enviada pro
+// Storage e as URLs ficam salvas juntas na mesma coluna foto_url, separadas
+// por vírgula — sem precisar de uma tabela/coluna nova no banco.
 export async function createInspecao(reg) {
-  const fotoUrl = await uploadFoto(reg.foto, reg.ambienteId);
+  let fotoUrl;
+  if (Array.isArray(reg.foto)) {
+    const urls = [];
+    for (const dataUrl of reg.foto) {
+      urls.push(await uploadFoto(dataUrl, reg.ambienteId));
+    }
+    fotoUrl = urls.join(",");
+  } else {
+    fotoUrl = await uploadFoto(reg.foto, reg.ambienteId);
+  }
   const { data, error } = await supabase
     .from("inspecoes")
     .insert({
