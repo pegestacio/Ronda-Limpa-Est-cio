@@ -1416,7 +1416,7 @@ function TelaInspecao({ ambiente, currentUser, onCancelar, onConcluida, adminEma
   const avancar = () => {
     setErr("");
     if (etapa === 1 && !status) { setErr("Selecione uma condição para o ambiente."); return; }
-    if (etapa === 3 && fotos.length === 0) { setErr("Adicione pelo menos uma foto."); return; }
+    if (etapa === 3 && fotos.length === 0 && status !== "limpo") { setErr("Adicione pelo menos uma foto."); return; }
     if (etapa === 4 && obrigatorioObs && !observacao.trim()) { setErr("Observação obrigatória para ambientes não limpos."); return; }
     setEtapa(e => Math.min(e + 1, 5));
   };
@@ -1578,7 +1578,7 @@ function TelaInspecao({ ambiente, currentUser, onCancelar, onConcluida, adminEma
           <div className="space-y-4">
             <div>
               <h2 className="font-display font-bold text-lg text-gray-900 dark:text-white">Registre o ambiente</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">Tire fotos para registrar a condição encontrada.</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{status === "limpo" ? "Opcional para ambientes limpos." : "Tire fotos para registrar a condição encontrada."}</p>
             </div>
 
             {fotos.length > 0 && (
