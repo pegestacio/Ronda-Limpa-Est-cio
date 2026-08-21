@@ -373,7 +373,7 @@ function AdminShell({ currentUser, onLogout, theme, toggleTheme, tab, setTab, oc
 
               <div className="relative">
                 <button onClick={() => setMenuUsuario(v => !v)} className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800">
-                  <span className="w-8 h-8 rounded-full bg-blue-700 text-white text-xs font-bold flex items-center justify-center shrink-0">{iniciais}</span>
+                  <span className="w-8 h-8 rounded-full bg-navy text-white text-xs font-bold flex items-center justify-center shrink-0">{iniciais}</span>
                   <span className="hidden sm:flex flex-col items-start leading-tight">
                     <span className="text-sm font-medium text-gray-800 dark:text-gray-100">{currentUser.nome}</span>
                     <span className="text-[11px] text-gray-400 dark:text-gray-500 capitalize">{currentUser.perfil}</span>
@@ -616,7 +616,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
             <button
               key={op.key}
               onClick={() => setPeriodo(op.key)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${periodo === op.key ? "bg-blue-700 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${periodo === op.key ? "bg-navy text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}
             >
               {op.label}
             </button>
@@ -1315,7 +1315,7 @@ function InspetorInicio({ ambientes, todasInspecoes, currentUser, onIniciar, mod
         {modo === "inicio" && (
           <div className="flex gap-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-1 w-fit">
             {[{ k: "todos", l: "Todos" }, { k: "pendentes", l: "Pendentes" }, { k: "concluidos", l: "Concluídos" }].map(op => (
-              <button key={op.k} onClick={() => setFiltro(op.k)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtro === op.k ? "bg-blue-700 text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
+              <button key={op.k} onClick={() => setFiltro(op.k)} className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${filtro === op.k ? "bg-navy text-white" : "text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700"}`}>
                 {op.l}
               </button>
             ))}
@@ -1392,7 +1392,7 @@ function InspetorPerfil({ currentUser, theme, toggleTheme }) {
     <div className="space-y-4">
       <h1 className="font-display font-bold text-xl text-gray-900 dark:text-white">Perfil</h1>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm p-5 flex items-center gap-4">
-        <span className="w-14 h-14 rounded-full bg-blue-700 text-white text-lg font-bold flex items-center justify-center shrink-0">
+        <span className="w-14 h-14 rounded-full bg-navy text-white text-lg font-bold flex items-center justify-center shrink-0">
           {currentUser.nome.trim().split(/\s+/).slice(0, 2).map(p => p[0]).join("").toUpperCase()}
         </span>
         <div>
@@ -1529,7 +1529,7 @@ function TelaInspecao({ ambiente, currentUser, onCancelar, onConcluida, adminEma
           {etapa <= totalEtapas && (
             <div className="flex gap-1 mt-3">
               {[1, 2, 3, 4].map(n => (
-                <div key={n} className={`h-1 flex-1 rounded-full ${n <= etapa ? "bg-blue-700" : "bg-gray-100 dark:bg-gray-700"}`} />
+                <div key={n} className={`h-1 flex-1 rounded-full ${n <= etapa ? "bg-navy" : "bg-gray-100 dark:bg-gray-700"}`} />
               ))}
             </div>
           )}
@@ -1617,7 +1617,7 @@ function TelaInspecao({ ambiente, currentUser, onCancelar, onConcluida, adminEma
               </div>
             )}
 
-            <button onClick={() => cameraRef.current?.click()} className="w-full flex items-center justify-center gap-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl py-4 font-semibold">
+            <button onClick={() => cameraRef.current?.click()} className="w-full flex items-center justify-center gap-2 bg-navy hover:bg-navy-dark text-white rounded-xl py-4 font-semibold">
               <Camera size={20} /> Tirar foto
             </button>
             <button onClick={() => galeriaRef.current?.click()} className="btn-secondary w-full py-3"><ImageIcon size={16} /> Adicionar da galeria</button>
@@ -2095,7 +2095,7 @@ function ChatIA({ ambientes, inspecoes, users }) {
     <div className="no-print">
       <button
         onClick={() => setAberto(v => !v)}
-        className="fixed bottom-5 right-5 z-40 bg-blue-700 hover:bg-blue-800 text-white rounded-full p-3.5 shadow-lg transition-colors"
+        className="fixed bottom-5 right-5 z-40 bg-navy hover:bg-navy-dark text-white rounded-full p-3.5 shadow-lg transition-colors"
         title="Assistente ZELO"
       >
         {aberto ? <X size={22} /> : <MessageCircle size={22} />}
@@ -2103,7 +2103,7 @@ function ChatIA({ ambientes, inspecoes, users }) {
 
       {aberto && (
         <div className="fixed bottom-20 right-5 z-40 w-[92vw] max-w-sm h-[70vh] max-h-[520px] bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
-          <div className="bg-blue-800 text-white px-4 py-3 flex items-center gap-2">
+          <div className="bg-navy text-white px-4 py-3 flex items-center gap-2">
             <Sparkles size={16} />
             <div>
               <p className="text-sm font-semibold leading-tight">Assistente ZELO</p>
@@ -2116,7 +2116,7 @@ function ChatIA({ ambientes, inspecoes, users }) {
               <div key={idx} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
                 <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm whitespace-pre-line ${
                   m.role === "user"
-                    ? "bg-blue-700 text-white rounded-br-sm"
+                    ? "bg-navy text-white rounded-br-sm"
                     : "bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-bl-sm"
                 }`}>
                   {m.content}
