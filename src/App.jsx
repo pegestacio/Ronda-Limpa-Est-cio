@@ -908,7 +908,7 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
               {filtered.map(({ ambiente: a, ultima, ocorrencias }) => {
                 const st = ultima ? statusStyle(ultima.status) : statusStyle(null);
                 return (
-                  <tr key={a.id} className="border-t border-gray-100 dark:border-gray-700">
+                  <tr key={a.id} className="border-t border-gray-100 dark:border-gray-700 even:bg-gray-50/70 dark:even:bg-gray-900/40 hover:bg-blue-50/40 dark:hover:bg-gray-700/40">
                     <td className="px-4 py-2.5">
                       <p className="font-medium text-gray-800 dark:text-gray-100">{a.nome}</p>
                       <p className="text-xs text-gray-400 dark:text-gray-500">{a.codigo} · Bloco {a.bloco} · {a.andar}º andar</p>
@@ -1782,7 +1782,7 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
               {filtered.map(i => {
                 const st = statusStyle(i.status);
                 return (
-                  <tr key={i.id} onClick={() => setDetalhe(i)} className="border-t border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                  <tr key={i.id} onClick={() => setDetalhe(i)} className="border-t border-gray-100 dark:border-gray-700 even:bg-gray-50/70 dark:even:bg-gray-900/40 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-gray-700/60">
                     <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">{i.ambienteNome}</td>
                     <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">{i.inspetorNome}</td>
                     <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{i.data}</td>
@@ -2038,7 +2038,7 @@ function Relatorios({ ambientes, inspecoes }) {
           </thead>
           <tbody>
             {linhas.map((l, idx) => (
-              <tr key={idx} className="border-t border-gray-100 dark:border-gray-700">
+              <tr key={idx} className="border-t border-gray-100 dark:border-gray-700 even:bg-gray-50/70 dark:even:bg-gray-900/40">
                 <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{l.Ambiente}</td>
                 <td className="px-3 py-2">{l.Status}</td>
                 <td className="px-3 py-2 text-gray-500 dark:text-gray-400">{l.Observacao || "—"}</td>
@@ -2205,7 +2205,7 @@ function Ocorrencias({ notificacoes, onChange }) {
             </thead>
             <tbody>
               {notificacoes.map(n => (
-                <tr key={n.id} onClick={() => setDetalhe(n)} className="border-t border-gray-100 dark:border-gray-700 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/40">
+                <tr key={n.id} onClick={() => setDetalhe(n)} className="border-t border-gray-100 dark:border-gray-700 even:bg-gray-50/70 dark:even:bg-gray-900/40 cursor-pointer hover:bg-blue-50/50 dark:hover:bg-gray-700/60">
                   <td className="px-4 py-2.5 font-medium text-gray-800 dark:text-gray-100">{n.ambienteNome}</td>
                   <td className="px-4 py-2.5 text-gray-600 dark:text-gray-300">Não conformidade de limpeza</td>
                   <td className="px-4 py-2.5 text-gray-500 dark:text-gray-400">{n.data} {n.hora}</td>
