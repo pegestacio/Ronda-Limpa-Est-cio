@@ -646,7 +646,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
       {/* gráfico + ranking de problemas */}
       <div className="grid lg:grid-cols-2 gap-4">
         <Card title="Status das inspeções">
-          {pieData.length === 0 ? <EmptyMini text="Sem inspeções ainda" /> : (
+          {pieData.length === 0 ? <EmptyMini text="Sem inspeções ainda" icon={BarChart3} /> : (
             <ResponsiveContainer width="100%" height={220}>
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" innerRadius={52} outerRadius={80} paddingAngle={2}>
@@ -659,7 +659,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
         </Card>
 
         <Card title="Ambientes com problemas">
-          {ambientesComProblemas.length === 0 ? <EmptyMini text="Nenhum problema registrado" /> : (
+          {ambientesComProblemas.length === 0 ? <EmptyMini text="Nenhum problema registrado" icon={ShieldCheck} /> : (
             <ul className="divide-y divide-gray-100 dark:divide-gray-700">
               {ambientesComProblemas.map(([nome, total], idx) => (
                 <li key={nome} className="flex items-center justify-between py-2.5">
@@ -687,7 +687,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
 
       {/* atividades recentes */}
       <Card title="Atividades recentes">
-        {atividades.length === 0 ? <EmptyMini text="Nenhuma atividade ainda" /> : (
+        {atividades.length === 0 ? <EmptyMini text="Nenhuma atividade ainda" icon={Activity} /> : (
           <ul className="space-y-3">
             {atividades.map(i => {
               const info = {
@@ -761,8 +761,33 @@ function Card({ title, children, right }) {
   );
 }
 
-function EmptyMini({ text }) {
-  return <div className="h-[180px] flex items-center justify-center text-sm text-gray-400 dark:text-gray-500">{text}</div>;
+function EmptyMini({ text, icon: Icon }) {
+  return (
+    <div className="h-[180px] flex flex-col items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500">
+      {Icon && (
+        <span className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-700 flex items-center justify-center">
+          <Icon size={18} className="text-gray-300 dark:text-gray-500" />
+        </span>
+      )}
+      {text}
+    </div>
+  );
+}
+
+function EstadoVazio({ icon: Icon, titulo, descricao, tom = "neutro" }) {
+  const tons = {
+    neutro: "bg-gray-50 dark:bg-gray-700 text-gray-300 dark:text-gray-500",
+    positivo: "bg-emerald-50 dark:bg-emerald-950 text-emerald-400 dark:text-emerald-500",
+  };
+  return (
+    <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-200 dark:border-gray-700 py-14 px-6 text-center">
+      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-3 ${tons[tom]}`}>
+        <Icon size={24} />
+      </div>
+      <p className="text-sm font-semibold text-gray-600 dark:text-gray-300">{titulo}</p>
+      {descricao && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 max-w-xs mx-auto">{descricao}</p>}
+    </div>
+  );
 }
 
 /* --------------------------- ambientes (admin) ---------------------------- */
@@ -864,10 +889,7 @@ function AmbientesManager({ ambientes, inspecoes, onChange }) {
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
-          <Building2 className="mx-auto mb-2" size={26} />
-          Nenhum ambiente encontrado.
-        </div>
+        <EstadoVazio icon={Building2} titulo="Nenhum ambiente encontrado" descricao="Tente ajustar a busca ou os filtros, ou cadastre um novo ambiente." />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
@@ -1304,9 +1326,12 @@ function InspetorInicio({ ambientes, todasInspecoes, currentUser, onIniciar, mod
       <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">Ambientes para inspeção</p>
 
       {filtradas.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
-          <CheckCircle2 className="mx-auto mb-2" size={26} /> Nada por aqui.
-        </div>
+        <EstadoVazio
+          icon={CheckCircle2}
+          tom="positivo"
+          titulo={modo === "pendencias" ? "Tudo em dia por aqui!" : "Nada por aqui"}
+          descricao={modo === "pendencias" ? "Nenhum ambiente pendente no momento." : "Tente ajustar a busca ou o filtro selecionado."}
+        />
       ) : (
         <div className="space-y-2.5">
           {filtradas.map(({ ambiente: a, concluida }) => {
@@ -1738,9 +1763,7 @@ function InspecoesHistorico({ ambientes, inspecoes, users, minimalFilters, onCha
       </div>
 
       {filtered.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
-          <Inbox className="mx-auto mb-2" size={26} /> Nenhuma inspeção encontrada com os filtros atuais.
-        </div>
+        <EstadoVazio icon={Inbox} titulo="Nenhuma inspeção encontrada" descricao="Tente ajustar os filtros acima para ver mais resultados." />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
@@ -2166,9 +2189,7 @@ function Ocorrencias({ notificacoes, onChange }) {
       </div>
 
       {notificacoes.length === 0 ? (
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-10 text-center text-gray-400 dark:text-gray-500">
-          <AlertCircle className="mx-auto mb-2" size={26} /> Nenhuma ocorrência registrada até o momento.
-        </div>
+        <EstadoVazio icon={ShieldCheck} tom="positivo" titulo="Nenhuma ocorrência registrada" descricao="Ótimo sinal — nenhum ambiente foi marcado como não limpo até agora." />
       ) : (
         <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 shadow-sm overflow-x-auto">
           <table className="w-full text-sm">
