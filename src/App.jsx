@@ -20,7 +20,7 @@ import {
   fetchAmbientes, createAmbiente, updateAmbiente, deleteAmbiente,
   fetchInspecoes, createInspecao, updateInspecao, deleteInspecao, uploadFotoInspecao,
   fetchNotificacoes, createNotificacao, markNotificacaoLida, deleteNotificacao,
-  gerarResumoIA, enviarEmailNotificacao, enviarMensagemChat,
+  gerarResumoIA, enviarEmailNotificacao, enviarWhatsAppNotificacao, enviarMensagemChat,
 } from "./api";
 
 /* ----------------------------- constantes ----------------------------- */
@@ -552,16 +552,13 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
     });
   }, [inspecoes, rangeInicio, rangeFim]);
 
-  const { dataKey } = nowParts();
-  const inspHoje = inspecoes.filter(i => i.dataKey === dataKey);
-
   const ultimasPorAmbiente = useMemo(() => {
     const map = {};
-    for (const i of inspecoes) {
+    for (const i of inspecoesPeriodo) {
       if (!map[i.ambienteId] || new Date(i.criadoEm) > new Date(map[i.ambienteId].criadoEm)) map[i.ambienteId] = i;
     }
     return map;
-  }, [inspecoes]);
+  }, [inspecoesPeriodo]);
 
   const limpos = Object.values(ultimasPorAmbiente).filter(i => i.status === "limpo").length;
   const parciais = Object.values(ultimasPorAmbiente).filter(i => i.status === "parcial").length;
@@ -578,7 +575,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
 
   const ambientesComProblemas = useMemo(() => {
     const map = {};
-    for (const i of inspecoes) {
+    for (const i of inspecoesPeriodo) {
       if (i.status === "nao_limpo" || i.status === "parcial") {
         const amb = ambientes.find(a => a.id === i.ambienteId);
         const nome = amb ? amb.nome : "—";
@@ -586,18 +583,19 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
       }
     }
     return Object.entries(map).sort((a, b) => b[1] - a[1]).slice(0, 6);
-  }, [inspecoes, ambientes]);
+  }, [inspecoesPeriodo, ambientes]);
 
-  const ocorrenciasTotal = inspecoes.filter(i => i.status === "nao_limpo" || i.status === "parcial").length;
+  const ocorrenciasTotal = inspecoesPeriodo.filter(i => i.status === "nao_limpo" || i.status === "parcial").length;
   const ambientesAvaliados = Object.keys(ultimasPorAmbiente).length;
 
   const atividades = useMemo(() => {
-    return [...inspecoes]
+    return [...inspecoesPeriodo]
       .sort((a, b) => new Date(b.criadoEm) - new Date(a.criadoEm))
       .slice(0, 8);
-  }, [inspecoes]);
+  }, [inspecoesPeriodo]);
 
   const primeiroNome = (currentUser?.nome || "").trim().split(" ")[0];
+  const labelInspecoes = { hoje: "Inspeções hoje", semana: "Inspeções na semana", mes: "Inspeções no mês", personalizado: "Inspeções no período" }[periodo];
 
   return (
     <div className="space-y-5">
@@ -635,7 +633,7 @@ function Dashboard({ ambientes, inspecoes, currentUser }) {
       {/* indicadores */}
       <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         <StatCard label="Total de ambientes" value={ambientes.length} color="blue" icon={Building2} />
-        <StatCard label="Inspeções hoje" value={inspHoje.length} color="blue" icon={ClipboardList} />
+        <StatCard label={labelInspecoes} value={inspecoesPeriodo.length} color="blue" icon={ClipboardList} />
         <StatCard label="Limpos" value={limpos} color="emerald" icon={CheckCircle2} />
         <StatCard label="Parciais" value={parciais} color="amber" icon={AlertTriangle} />
         <StatCard label="Não limpos" value={naoLimpos} color="red" icon={XCircle} />
@@ -1494,6 +1492,19 @@ function TelaInspecao({ ambiente, currentUser, onCancelar, onConcluida, adminEma
           } catch (emailErr) {
             console.error("Falha ao enviar e-mail de notificação:", emailErr);
           }
+        }
+
+        // Envio de WhatsApp também é "melhor esforço": se falhar, não
+        // impede o registro da inspeção, que já foi salvo com sucesso.
+        try {
+          await enviarWhatsAppNotificacao({
+            ambienteNome: ambiente.nome, ambienteCodigo: ambiente.codigo,
+            bloco: ambiente.bloco, andar: ambiente.andar, tipo: ambiente.tipo,
+            observacao: observacaoFinal, data, hora,
+            inspetorNome: currentUser.nome, fotoUrl: primeiraUrl,
+          });
+        } catch (whatsErr) {
+          console.error("Falha ao enviar notificação por WhatsApp:", whatsErr);
         }
       }
       setConcluida(true);
